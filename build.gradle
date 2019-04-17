@@ -114,6 +114,8 @@ dependencies {
     extTestImplementation('org.apache.curator:curator-x-discovery:4.0.1') {
         exclude group: 'org.apache.zookeeper', module: 'zookeeper'
     }
+
+    implementation 'de.hhu.bsinfo:skema:1.0.0-SNAPSHOT'
 }
 
 artifacts {

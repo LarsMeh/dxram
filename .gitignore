@@ -24,3 +24,4 @@ dxram/out
 zookeeper.out
 *.ipr
 *.iws
+.attach_pid*
