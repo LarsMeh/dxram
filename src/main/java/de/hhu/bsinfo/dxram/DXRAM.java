@@ -42,6 +42,8 @@ import de.hhu.bsinfo.dxram.chunk.ChunkLocalService;
 import de.hhu.bsinfo.dxram.chunk.ChunkMigrationComponent;
 import de.hhu.bsinfo.dxram.chunk.ChunkService;
 import de.hhu.bsinfo.dxram.chunk.ChunkServiceConfig;
+import de.hhu.bsinfo.dxram.datastructure.DataStructureService;
+import de.hhu.bsinfo.dxram.datastructure.messages.DataStructureMessageTypes;
 import de.hhu.bsinfo.dxram.engine.Service;
 import de.hhu.bsinfo.dxram.engine.DXRAMConfig;
 import de.hhu.bsinfo.dxram.engine.DXRAMEngine;
@@ -264,6 +266,7 @@ public final class DXRAM {
         p_engine.registerService(TemporaryStorageService.class, TemporaryStorageServiceConfig.class);
         p_engine.registerService(FunctionService.class, ModuleConfig.class);
         p_engine.registerService(ManagementService.class, ManagementServiceConfig.class);
+        p_engine.registerService(DataStructureService.class, ModuleConfig.class);
     }
 
     /**

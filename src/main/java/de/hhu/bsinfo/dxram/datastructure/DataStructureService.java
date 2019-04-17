@@ -135,15 +135,6 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
 
     /*** Override as a Service ***/
 
-
-//    @Override
-//    protected void resolveComponentDependencies(DXRAMComponentAccessor p_componentAccessor) {
-//        m_chunk = p_componentAccessor.getComponent(ChunkComponent.class);
-//        m_nameComponent = p_componentAccessor.getComponent(NameserviceComponent.class);
-//        m_network = p_componentAccessor.getComponent(NetworkComponent.class);
-//        m_boot = p_componentAccessor.getComponent(AbstractBootComponent.class);
-//    }
-
     @Override
     protected boolean startService(DXRAMConfig p_config) {
         m_myNodeID = m_boot.getNodeId();

@@ -65,14 +65,14 @@ public class HashMapTest {
         map.put("EFHD", "ASDFH");
         map.put("EFD", "ASDFH");
 
-        Assert.assertEquals(14, map.size());
+        Assert.assertEquals(11, map.size());
 
         Assert.assertEquals("CDEFH", map.remove("ABCD"));
         Assert.assertEquals("CDEFH", map.remove("ACD"));
         Assert.assertEquals("CDEFH", map.remove("BD"));
         Assert.assertEquals("ASDFH", map.remove("EFHD"));
 
-        Assert.assertEquals(10, map.size());
+        Assert.assertEquals(7, map.size());
 
     }
 
@@ -98,14 +98,14 @@ public class HashMapTest {
         map.put("EFHD", "ASDFH");
         map.put("EFD", "ASDFH");
 
-        Assert.assertEquals(14, map.size());
+        Assert.assertEquals(11, map.size());
 
         Assert.assertEquals("CDEFH", map.get("ABCD"));
         Assert.assertEquals("CDEFH", map.get("ACD"));
         Assert.assertEquals("CDEFH", map.get("BD"));
         Assert.assertEquals("ASDFH", map.get("EFHD"));
 
-        Assert.assertEquals(14, map.size());
+        Assert.assertEquals(11, map.size());
 
     }
 
@@ -131,14 +131,7 @@ public class HashMapTest {
         map.put("EFHD", "ASDFH");
         map.put("EFD", "ASDFH");
 
-        Assert.assertEquals(14, map.size());
-
-        Assert.assertEquals("CDEFH", map.get("ABCD"));
-        Assert.assertEquals("CDEFH", map.get("ACD"));
-        Assert.assertEquals("CDEFH", map.get("BD"));
-        Assert.assertEquals("ASDFH", map.get("EFHD"));
-
-        Assert.assertEquals(14, map.size());
+        Assert.assertEquals(11, map.size());
 
         map.clear();
 
