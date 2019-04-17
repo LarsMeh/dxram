@@ -28,17 +28,17 @@ public class Converter {
     }
 
     @Contract(pure = true)
-    public static long byteArrayToLong() {
-        byte[] arr = new byte[8];
+    public static long byteArrayToLong(byte[] p_arr) {
+        if (p_arr.length < 8) throw new IllegalArgumentException();
 
-        return (((long) arr[0]) & 0xFF) +
-                ((((long) arr[1]) & 0xFF) << 8) +
-                ((((long) arr[2]) & 0xFF) << 16) +
-                ((((long) arr[3]) & 0xFF) << 24) +
-                ((((long) arr[4]) & 0xFF) << 32) +
-                ((((long) arr[5]) & 0xFF) << 40) +
-                ((((long) arr[6]) & 0xFF) << 48) +
-                ((((long) arr[7]) & 0xFF) << 56);
+        return (((long) p_arr[0]) & 0xFF) +
+                ((((long) p_arr[1]) & 0xFF) << 8) +
+                ((((long) p_arr[2]) & 0xFF) << 16) +
+                ((((long) p_arr[3]) & 0xFF) << 24) +
+                ((((long) p_arr[4]) & 0xFF) << 32) +
+                ((((long) p_arr[5]) & 0xFF) << 40) +
+                ((((long) p_arr[6]) & 0xFF) << 48) +
+                ((((long) p_arr[7]) & 0xFF) << 56);
     }
 
     /* Int - byte[] */
@@ -57,14 +57,14 @@ public class Converter {
     }
 
     @Contract(pure = true)
-    public static int byteArrayToInt() {
-        byte[] arr = new byte[4];
+    public static int byteArrayToInt(byte[] p_arr) {
+        if (p_arr.length < 4) throw new IllegalArgumentException();
 
-        int maxOffset = arr.length - 1;
-        return arr[maxOffset - 3] & 0xFF |
-                (arr[maxOffset - 2] & 0xFF) << 8 |
-                (arr[maxOffset - 1] & 0xFF) << 16 |
-                (arr[maxOffset] & 0xFF) << 24;
+        int maxOffset = p_arr.length - 1;
+        return p_arr[maxOffset - 3] & 0xFF |
+                (p_arr[maxOffset - 2] & 0xFF) << 8 |
+                (p_arr[maxOffset - 1] & 0xFF) << 16 |
+                (p_arr[maxOffset] & 0xFF) << 24;
     }
 
     /* Short - byte[] */
@@ -85,5 +85,11 @@ public class Converter {
                 ((((short) p_arr[p_index]) & 0xFF) << 8));
     }
 
+    @Contract(pure = true)
+    public static short byteArrayToShort(@NotNull byte[] p_arr) {
+        if (p_arr.length < 2) throw new IllegalArgumentException();
+        return (short) ((((short) p_arr[0]) & 0xFF) +
+                ((((short) p_arr[1]) & 0xFF) << 8));
+    }
 
 }
