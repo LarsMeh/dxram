@@ -25,15 +25,19 @@ public class HashMap<K, V> {
 
     private static final Logger log = LogManager.getFormatterLogger(HashMap.class);
 
+    private static final int BUCKET_ENTRIES_EXP;
+    private static final int HASH_TABLE_DEPTH_LIMIT;
     static final int BUCKET_ENTRIES;
     private static final short BUCKET_INITIAL_DEPTH;
     private static final short SKEMA_DEFAULT_ID;
 
     static {
-        Skema.enableAutoRegistration();
-        BUCKET_ENTRIES = (int) Math.pow(2, 2); // 4
+        HASH_TABLE_DEPTH_LIMIT = 31;
+        BUCKET_ENTRIES_EXP = 2;
+        BUCKET_ENTRIES = (int) Math.pow(2, BUCKET_ENTRIES_EXP);
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;
+        Skema.enableAutoRegistration();
     }
 
 
@@ -71,7 +75,7 @@ public class HashMap<K, V> {
         m_skemaRegistrationSwitch = true;
 
         // calculate hashtable_depth
-        short hashtable_depth = (short) (calcExponentForBaseTwo(p_initialCapacity) + 1);
+        short hashtable_depth = calcTableDepth(p_initialCapacity);
 
         // Init NodePool
         m_nodepool_cid = initNodePool(p_onlinePeers, p_numberOfNodes);
@@ -913,20 +917,23 @@ public class HashMap<K, V> {
 
 
     @Contract(pure = true)
-    private int calcExponentForBaseTwo(int p_value) {
-        if (p_value == 0)
-            return 0;
-        if (p_value < 0)
-            return -1;
+    private short calcTableDepth(int p_value) {
+        assert p_value >= 0;
 
-        int highestExponent = 31;
+        if (p_value == 0)
+            return 1;
+
+        int highestExponent = HASH_TABLE_DEPTH_LIMIT + 1; // + 1 generates space
 
         do {
             p_value = p_value << 1;
             highestExponent--;
         } while (p_value > 0);
 
-        return highestExponent;
+        short diff = (short) (highestExponent - BUCKET_ENTRIES_EXP);
+
+        return diff > 0 ? diff : 1;
+
     }
 
 }

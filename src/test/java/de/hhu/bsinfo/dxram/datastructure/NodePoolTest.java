@@ -1,6 +1,7 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
 import de.hhu.bsinfo.dxmem.DXMem;
+import de.hhu.bsinfo.skema.Skema;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -38,6 +39,12 @@ public class NodePoolTest {
         System.out.println("END");
         structuredTest.end();
 
+
+        byte[] b = {40, 0};
+        byte[] c = {40, 32};
+        Skema.register(byte[].class);
+        System.out.println(Arrays.toString(Skema.serialize(c)));
+        System.out.println(Arrays.toString(Skema.serialize(b)));
 
     }
 }

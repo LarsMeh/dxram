@@ -70,14 +70,14 @@ public abstract class BootComponent<T> extends Component<T> {
     public abstract List<Short> getOnlineNodeIds();
 
     /**
-     * Get IDs of all available (online) peer nodes except the own.
+     * Get IDs of all available (online) peer nodes including the own.
      *
      * @return List of IDs of nodes available without own ID.
      */
     public abstract List<Short> getOnlinePeerIds();
 
     /**
-     * Get IDs of all available (online) superpeer nodes except the own.
+     * Get IDs of all available (online) superpeer nodes including the own.
      *
      * @return List of IDs of nodes available without own ID.
      */

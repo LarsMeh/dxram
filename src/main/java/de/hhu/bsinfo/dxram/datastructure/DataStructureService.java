@@ -40,7 +40,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
     /*** Create data structures ***/
     public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_numberOfNodes,
                                               final int p_keyBytes, final int p_valueBytes, final byte p_hashFunctionId) {
-        assert p_initialCapacity > 1 && p_numberOfNodes > 0 && (short) p_keyBytes > 0 && (short) p_valueBytes > 0 &&
+        assert p_initialCapacity > 1 && (p_numberOfNodes > 0 || p_numberOfNodes == -1)&& (short) p_keyBytes > 0 && (short) p_valueBytes > 0 &&
                 HashFunctions.isProperValue(p_hashFunctionId);
 
         return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),

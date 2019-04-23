@@ -9,7 +9,7 @@ public class HashFunctions {
 
     private static final int SEED;
 
-    private static final byte MURMUR3_32 = 1;
+    public static final byte MURMUR3_32 = 1;
     private static final byte MURMUR3_128 = 2;
 
     private static final HashFunction m_murmur3_32;

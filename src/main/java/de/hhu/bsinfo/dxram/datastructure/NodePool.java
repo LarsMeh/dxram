@@ -36,7 +36,7 @@ public class NodePool {
      * @return
      */
     static int getInitialMemorySize(final int p_onlinePeers, final int p_numberOfPeers) {
-        if (p_numberOfPeers <= p_onlinePeers)
+        if (p_numberOfPeers <= p_onlinePeers && p_numberOfPeers != -1)
             return Short.BYTES * p_numberOfPeers + DATA_OFFSET;
         else {
             // WARN
@@ -50,22 +50,34 @@ public class NodePool {
      * @param p_address
      * @param p_numberOfPeers
      */
-    static void initialize(final RawWrite p_writer, final List<Short> p_onlinePeers, final long p_address, final int p_numberOfPeers) {
+    static void initialize(final RawWrite p_writer, final List<Short> p_onlinePeers, final long p_address, int p_numberOfPeers) {
+        if (p_numberOfPeers == -1) {
+            p_numberOfPeers = p_onlinePeers.size();
+
+            int offset = DATA_OFFSET;
+            for (int i : p_onlinePeers) {
+                p_writer.writeShort(p_address, offset, p_onlinePeers.get(i));
+                offset += Short.BYTES;
+            }
+
+        } else {
+
+            Random random = new Random();
+            HashSet<Integer> set = new HashSet<>(p_numberOfPeers);
+
+            do {
+                set.add(random.nextInt(p_onlinePeers.size()));
+            } while (set.size() < p_numberOfPeers);
+
+            int offset = DATA_OFFSET;
+            for (int i : set) {
+                p_writer.writeShort(p_address, offset, p_onlinePeers.get(i));
+                offset += Short.BYTES;
+            }
+        }
+
         // Writer Header
         p_writer.writeShort(p_address, SIZE_OFFSET, (short) (p_numberOfPeers + Short.MIN_VALUE));
-
-        Random random = new Random();
-        HashSet<Integer> set = new HashSet<>(p_numberOfPeers);
-
-        do {
-            set.add(random.nextInt(p_onlinePeers.size()));
-        } while (set.size() < p_numberOfPeers);
-
-        int offset = DATA_OFFSET;
-        for (int i : set) {
-            p_writer.writeShort(p_address, offset, p_onlinePeers.get(i));
-            offset += Short.BYTES;
-        }
     }
 
     /**

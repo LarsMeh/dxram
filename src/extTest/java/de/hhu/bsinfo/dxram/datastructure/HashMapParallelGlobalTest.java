@@ -1,6 +1,5 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
-
 import de.hhu.bsinfo.dxram.DXRAM;
 import de.hhu.bsinfo.dxram.DXRAMJunitRunner;
 import de.hhu.bsinfo.dxram.DXRAMTestConfiguration;
@@ -38,7 +37,6 @@ public class HashMapParallelGlobalTest {
         HashMap<String, String> map = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1);
 
         Assert.assertEquals(0, map.size());
-
 
         Thread t1 = new Thread(() -> {
             System.out.println("###T1 FIRST###");
