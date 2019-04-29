@@ -39,7 +39,18 @@ public class HashMapTest {
 
         HashMap<String, String> map = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1);
 
-        map.put("ABCD", "EFGHIJ");
+        map.put("ABCD", "EFGHIJ"); // String
+
+        HashMap<Integer, Integer> map2 = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1);
+
+        map2.put(4, 6); // Integer
+
+        HashMap<byte[], byte[]> map3 = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1);
+
+        byte[] key = {1, 2, 3};
+        byte[] value = {4, 5, 6};
+        map3.put(key, value); // Byte Array
+        Assert.assertArrayEquals(value, map3.remove(key));
 
     }
 

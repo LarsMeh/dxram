@@ -2,7 +2,7 @@ package de.hhu.bsinfo.dxram.datastructure;
 
 import de.hhu.bsinfo.dxmem.data.ChunkID;
 import de.hhu.bsinfo.dxmem.operations.*;
-import de.hhu.bsinfo.dxram.datastructure.util.Converter;
+import de.hhu.bsinfo.dxram.datastructure.util.ConverterLittleEndian;
 import de.hhu.bsinfo.dxram.datastructure.util.ExtendibleHashing;
 import de.hhu.bsinfo.dxram.datastructure.util.HashFunctions;
 import org.apache.logging.log4j.LogManager;
@@ -98,7 +98,7 @@ public class Bucket {
 
         private void append(final short p_length, final byte[] p_bytes) {
             try {
-                m_byteStream.write(Converter.shortToByteArray(p_length));
+                m_byteStream.write(ConverterLittleEndian.shortToByteArray(p_length));
                 m_byteStream.write(p_bytes);
             } catch (IOException p_e) {
                 p_e.printStackTrace();
@@ -108,8 +108,8 @@ public class Bucket {
 
         private void appendHeader() {
             try {
-                m_byteStream.write(Converter.shortToByteArray(m_size));
-                m_byteStream.write(Converter.shortToByteArray(m_depth));
+                m_byteStream.write(ConverterLittleEndian.shortToByteArray(m_size));
+                m_byteStream.write(ConverterLittleEndian.shortToByteArray(m_depth));
             } catch (IOException p_e) {
                 p_e.printStackTrace();
             }
@@ -125,11 +125,11 @@ public class Bucket {
         }
 
         private static short extractDepth(final byte[] p_rawDataBytes) {
-            return Converter.byteArrayToShort(p_rawDataBytes, p_rawDataBytes.length - 1);
+            return ConverterLittleEndian.byteArrayToShort(p_rawDataBytes, p_rawDataBytes.length - 1);
         }
 
         private static short extractSize(final byte[] p_rawDataBytes) {
-            return Converter.byteArrayToShort(p_rawDataBytes, p_rawDataBytes.length - 3);
+            return ConverterLittleEndian.byteArrayToShort(p_rawDataBytes, p_rawDataBytes.length - 3);
         }
     }
 

@@ -3,7 +3,7 @@ package de.hhu.bsinfo.dxram.datastructure.util;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
-public class Converter {
+public final class ConverterLittleEndian {
 
     /* Long - byte[]*/
     @Contract(pure = true)
@@ -79,17 +79,16 @@ public class Converter {
     }
 
     @Contract(pure = true)
-    public static short byteArrayToShort(@NotNull byte[] p_arr, int p_index) {
-        if (p_arr.length < 2 || p_index < 1) throw new IllegalArgumentException();
-        return (short) ((((short) p_arr[p_index - 1]) & 0xFF) +
-                ((((short) p_arr[p_index]) & 0xFF) << 8));
-    }
-
-    @Contract(pure = true)
     public static short byteArrayToShort(@NotNull byte[] p_arr) {
         if (p_arr.length < 2) throw new IllegalArgumentException();
         return (short) ((((short) p_arr[0]) & 0xFF) +
                 ((((short) p_arr[1]) & 0xFF) << 8));
     }
 
+    @Contract(pure = true)
+    public static short byteArrayToShort(@NotNull byte[] p_arr, int p_index) {
+        if (p_arr.length < 2 || p_index < 1) throw new IllegalArgumentException();
+        return (short) ((((short) p_arr[p_index - 1]) & 0xFF) +
+                ((((short) p_arr[p_index]) & 0xFF) << 8));
+    }
 }

@@ -15,6 +15,9 @@ import de.hhu.bsinfo.dxram.engine.*;
 import de.hhu.bsinfo.dxram.nameservice.NameserviceComponent;
 import de.hhu.bsinfo.dxram.net.NetworkComponent;
 import de.hhu.bsinfo.dxutils.dependency.Dependency;
+import de.hhu.bsinfo.skema.Skema;
+
+import java.util.Arrays;
 
 @Module.Attributes(supportsSuperpeer = false, supportsPeer = true)
 public class DataStructureService extends Service<ModuleConfig> implements MessageReceiver {

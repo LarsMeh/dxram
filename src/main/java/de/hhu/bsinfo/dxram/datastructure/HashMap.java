@@ -59,6 +59,8 @@ public class HashMap<K, V> {
     private final byte m_hashFunctionId; // should be recovered
 
     private boolean m_skemaRegistrationSwitch;
+    private boolean m_serializeKey;
+    private boolean m_serializeValue;
 
 
     HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
@@ -73,6 +75,8 @@ public class HashMap<K, V> {
 
         m_hashFunctionId = p_hashFunctionId;
         m_skemaRegistrationSwitch = true;
+        m_serializeKey = true;
+        m_serializeValue = true;
 
         // calculate hashtable_depth
         short hashtable_depth = calcTableDepth(p_initialCapacity);
@@ -199,13 +203,27 @@ public class HashMap<K, V> {
 
         // Skema registration
         if (m_skemaRegistrationSwitch) {
-            Metadata.setSkemaValueType(m_writer, m_metaData_address, Skema.resolveIdentifier(p_value.getClass()));
+            if (p_key.getClass() == byte[].class)
+                m_serializeKey = false;
+            if (p_value.getClass() == byte[].class)
+                m_serializeValue = false;
+            else
+                Metadata.setSkemaValueType(m_writer, m_metaData_address, Skema.resolveIdentifier(p_value.getClass()));
+
             m_skemaRegistrationSwitch = false;
         }
 
         // Serialize
-        final byte[] key = Skema.serialize(p_key);
-        final byte[] value = Skema.serialize(p_value);
+        byte[] key, value;
+        if (m_serializeKey)
+            key = Skema.serialize(p_key);
+        else
+            key = (byte[]) p_key;
+
+        if (m_serializeValue)
+            value = Skema.serialize(p_value);
+        else
+            value = (byte[]) p_value;
 
         // Hash key
         final byte[] hash = HashFunctions.hash(Metadata.getHashFunctionId(m_reader, m_metaData_address), key);
@@ -466,8 +484,6 @@ public class HashMap<K, V> {
         // check if space from bucket is enough
         if (!Bucket.isEnoughSpace(p_memory.rawRead(), p_memory.size(), p_bucketCID, p_address, Bucket.calcStoredSize(p_key, p_value))) {
 
-            log.debug("RESIZE for ChunkID = " + ChunkID.toHexString(p_bucketCID));
-
             // resize Bucket and don't forget unpin, pin and update address
             int new_size = Bucket.sizeForFit(p_memory.rawRead(), p_memory.size(), p_bucketCID, p_address, Bucket.calcStoredSize(p_key, p_value));
 
@@ -598,28 +614,24 @@ public class HashMap<K, V> {
 
     public V get(final K p_key) {
         assert p_key != null;
+        V value;
 
         // Serialize
-        final byte[] key = Skema.serialize(p_key);
+        byte[] key;
+        if (m_serializeKey)
+            key = Skema.serialize(p_key);
+        else
+            key = (byte[]) p_key;
 
         // Hash key
         final byte[] hash = HashFunctions.hash(Metadata.getHashFunctionId(m_reader, m_metaData_address), key);
-        //log.info("Key: " + Arrays.toString(key));
-        //log.info("Hashed Key: " + Arrays.toString(hash));
 
         // lock reentrant write lock
         m_lock.readLock().lock();
 
-        //log.info(Hashtable.toString(m_memory.size(), m_reader, m_hashtable_cid, m_hashtable_address));
-
         // Lookup in Hashtable
         final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address));
         final long cid = Hashtable.lookup(m_reader, m_hashtable_address, index);
-
-        //log.info("Index = " + index);
-        //log.info("CID = " + ChunkID.toHexString(cid));
-
-        final V value = Skema.newInstance(Metadata.getSkemaValueId(m_reader, m_metaData_address));
 
         byte[] valueBytes;
 
@@ -639,7 +651,6 @@ public class HashMap<K, V> {
             }
 
             valueBytes = response.getValue();
-
         }
 
         // lock reentrant write lock
@@ -650,16 +661,17 @@ public class HashMap<K, V> {
         if (valueBytes == null)
             throw new NullPointerException();
 
-        Skema.deserialize(value, valueBytes);
-
+        if (m_serializeValue) {
+            value = Skema.newInstance(Metadata.getSkemaValueId(m_reader, m_metaData_address));
+            Skema.deserialize(value, valueBytes);
+        } else
+            value = (V) valueBytes;
         return value;
     }
 
 
     private static byte[] getFromLocalMemory(@NotNull final DXMem p_memory, final long p_cid, final byte[] p_key) {
         long address = p_memory.pinning().pin(p_cid).getAddress();
-
-        //log.info(Bucket.toString(p_memory.size(), p_memory.rawRead(), p_cid, address));
 
         byte[] value = Bucket.get(p_memory.rawRead(), address, p_key);
 
@@ -678,14 +690,17 @@ public class HashMap<K, V> {
 
     public V remove(final K p_key) {
         assert p_key != null;
+        V value;
 
         // Serialize
-        final byte[] key = Skema.serialize(p_key);
+        byte[] key;
+        if (m_serializeKey)
+            key = Skema.serialize(p_key);
+        else
+            key = (byte[]) p_key;
 
         // Hash key
         final byte[] hash = HashFunctions.hash(Metadata.getHashFunctionId(m_reader, m_metaData_address), key);
-
-        //log.info("key = " + Arrays.toString(key));
 
         // lock reentrant write lock
         m_lock.writeLock().lock();
@@ -693,8 +708,6 @@ public class HashMap<K, V> {
         // Lookup in Hashtable
         final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address));
         final long cid = Hashtable.lookup(m_reader, m_hashtable_address, index);
-
-        final V value = Skema.newInstance(Metadata.getSkemaValueId(m_reader, m_metaData_address));
 
         log.debug("Remove is : " + (m_service.isLocal(cid) ? "local" : "global") + "\n");
 
@@ -704,8 +717,6 @@ public class HashMap<K, V> {
             long address = m_memory.pinning().pin(cid).getAddress();
 
             valueBytes = Bucket.remove(m_reader, m_writer, address, key);
-
-            //log.info(Bucket.toString(m_memory.size(), m_reader, cid, address));
 
             m_memory.pinning().unpinCID(cid);
 
@@ -730,7 +741,11 @@ public class HashMap<K, V> {
         // unlock reentrant write lock
         m_lock.writeLock().unlock();
 
-        Skema.deserialize(value, valueBytes);
+        if (m_serializeValue) {
+            value = Skema.newInstance(Metadata.getSkemaValueId(m_reader, m_metaData_address));
+            Skema.deserialize(value, valueBytes);
+        } else
+            value = (V) valueBytes;
 
         return value;
     }
@@ -739,8 +754,16 @@ public class HashMap<K, V> {
         assert p_key != null && p_value != null;
 
         // Serialize
-        final byte[] key = Skema.serialize(p_key);
-        final byte[] value = Skema.serialize(p_value);
+        byte[] key, value;
+        if (m_serializeKey)
+            key = Skema.serialize(p_key);
+        else
+            key = (byte[]) p_key;
+
+        if (m_serializeValue)
+            value = Skema.serialize(p_value);
+        else
+            value = (byte[]) p_value;
 
         // Hash key
         final byte[] hash = HashFunctions.hash(Metadata.getHashFunctionId(m_reader, m_metaData_address), key);
@@ -752,16 +775,12 @@ public class HashMap<K, V> {
         final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address));
         final long cid = Hashtable.lookup(m_reader, m_hashtable_address, index);
 
-        log.debug("Remove is : " + (m_service.isLocal(cid) ? "local" : "global") + "\n");
-
         boolean result;
         if (m_service.isLocal(cid)) {
 
             long address = m_memory.pinning().pin(cid).getAddress();
 
             result = Bucket.remove(m_reader, m_writer, address, key, value);
-
-            //log.info(Bucket.toString(m_memory.size(), m_reader, cid, address));
 
             m_memory.pinning().unpinCID(cid);
 
@@ -790,7 +809,6 @@ public class HashMap<K, V> {
         assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_REMOVE_REQ;
 
         long address = pin(p_memory, p_request.getCid());
-        log.debug(Bucket.toString(p_memory.size(), p_memory.rawRead(), p_request.getCid(), address));
 
         byte[] value = Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), address, p_request.getKey());
         if (value == null)
@@ -841,9 +859,6 @@ public class HashMap<K, V> {
 
         // reset size
         Metadata.clearSize(m_writer, m_metaData_address);
-
-        // visualize
-        //log.error(Hashtable.toString(m_memory.size(), m_reader, m_hashtable_cid, m_hashtable_address));
 
         // unlock reentrant write lock
         m_lock.writeLock().unlock();
@@ -900,12 +915,12 @@ public class HashMap<K, V> {
     }
 
 
-    // TODO:
+    // TODO: optional
     public Set<K> keySet() {
         return null;
     }
 
-    // TODO:
+    // TODO: optional
     public Set<Map.Entry<K, V>> entrySet() {
         return null;
     }
