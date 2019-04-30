@@ -38,13 +38,5 @@ public class NodePoolTest {
         structuredTest.randomAccessVisualize(20);
         System.out.println("END");
         structuredTest.end();
-
-
-        byte[] b = {40, 0};
-        byte[] c = {40, 32};
-        Skema.register(byte[].class);
-        System.out.println(Arrays.toString(Skema.serialize(c)));
-        System.out.println(Arrays.toString(Skema.serialize(b)));
-
     }
 }
