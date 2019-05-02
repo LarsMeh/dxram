@@ -55,8 +55,8 @@ public class NodePool {
             p_numberOfPeers = p_onlinePeers.size();
 
             int offset = DATA_OFFSET;
-            for (int i : p_onlinePeers) {
-                p_writer.writeShort(p_address, offset, p_onlinePeers.get(i));
+            for (short nodeId : p_onlinePeers) {
+                p_writer.writeShort(p_address, offset, nodeId);
                 offset += Short.BYTES;
             }
 
