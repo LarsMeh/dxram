@@ -1,8 +1,12 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
 import de.hhu.bsinfo.dxmem.data.ChunkID;
+import de.hhu.bsinfo.dxmem.data.ChunkState;
 import de.hhu.bsinfo.dxmem.operations.*;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
+import java.text.NumberFormat;
 import java.util.HashSet;
 
 /**
@@ -17,6 +21,8 @@ import java.util.HashSet;
 @PinnedMemory
 @NoParamCheck
 public class Hashtable {
+
+    private static final Logger log = LogManager.getFormatterLogger(Hashtable.class);
 
     private static final int DEPTH_OFFSET;
     private static final int DATA_OFFSET;
@@ -80,19 +86,27 @@ public class Hashtable {
         short depth = (short) (p_reader.readShort(p_address, DEPTH_OFFSET) + 1);
         p_writer.writeShort(p_address, DEPTH_OFFSET, depth);
 
+        log.warn("Now Depth is " + depth + " Hash table will be resized from " + ((long) Math.pow(2, depth - 1) * Long.BYTES + DATA_OFFSET) + " to " + ((long) Math.pow(2, depth) * Long.BYTES + DATA_OFFSET));
         // resize chunk
         int newSize = (int) Math.pow(2, depth) * Long.BYTES + DATA_OFFSET;
         p_pinning.unpin(p_cid);
-        p_resize.resize(p_cid, newSize);
-        p_address = p_pinning.pin(p_cid).getAddress(); // maybe check if error for resize
+        if (p_resize.resize(p_cid, newSize) != ChunkState.OK) // TODO Resize funktioniert aber nicht die Nutzung ISSSUE
+            throw new RuntimeException("ChunkState for resize call on hashtable is not OK");
+
+        p_address = p_pinning.pin(p_cid).getAddress();
+
 
         // get table sizes
         int current_size = newSize - DATA_OFFSET;
         int old_size = current_size / 2;
+        //log.warn("curent: " + current_size + " old: " + old_size);
+
 
         // set offset's
         int left_offset = DATA_OFFSET + old_size - Long.BYTES;
         int right_offset = DATA_OFFSET + current_size - Long.BYTES;
+        //og.warn("leftOffset: " + left_offset + " right Offset: " + right_offset);
+
 
         // run through old size from max offset to 0
         while (left_offset >= DATA_OFFSET) {

@@ -5,6 +5,7 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import com.google.common.primitives.Longs;
 import de.hhu.bsinfo.dxmem.DXMem;
+import de.hhu.bsinfo.dxmem.core.MemoryRuntimeException;
 import de.hhu.bsinfo.dxmem.data.ChunkID;
 import de.hhu.bsinfo.dxmem.operations.Pinning;
 import de.hhu.bsinfo.dxmem.operations.RawRead;
@@ -118,7 +119,7 @@ public class HashMap<K, V> {
         long cid = m_memory.create().create(NodePool.getInitialMemorySize(p_onlinePeers.size(), p_numberOfNodes));
         long address = lockAndPin(cid);
         NodePool.initialize(m_writer, p_onlinePeers, address, p_numberOfNodes);
-        log.info(NodePool.toString(m_memory.size(), m_reader, cid, address));
+        //log.info(NodePool.toString(m_memory.size(), m_reader, cid, address));
         unlockAndUnpin(cid);
         return cid;
     }
@@ -128,7 +129,7 @@ public class HashMap<K, V> {
         long cid = m_memory.create().create(size);
         long address = lockAndPin(cid);
         Bucket.initialize(m_writer, address, p_depth);
-        log.info(Bucket.toString(m_memory.size(), m_reader, cid, address));
+        //log.info(Bucket.toString(m_memory.size(), m_reader, cid, address));
         unlockAndUnpin(cid);
         return cid;
     }
@@ -138,7 +139,7 @@ public class HashMap<K, V> {
         long cid = m_memory.create().create(initialSize);
         long address = lockAndPin(cid);
         Hashtable.initialize(m_writer, address, initialSize, p_depth, p_defaultEntry);
-        log.info(Hashtable.toString(m_memory.size(), m_reader, cid, address));
+        //log.info(Hashtable.toString(m_memory.size(), m_reader, cid, address));
         unlockAndUnpin(cid);
         return cid;
     }
@@ -148,7 +149,7 @@ public class HashMap<K, V> {
         long cid = m_memory.create().create(Metadata.getInitialMemorySize());
         long address = lockAndPin(cid);
         Metadata.initialize(m_writer, address, p_hashtable_cid, p_nodePool_cid, 0L, SKEMA_DEFAULT_ID, p_individual_bucketSize, p_hashFunctionId);
-        log.info(Metadata.toString(m_memory.size(), m_reader, cid, address));
+        //log.info(Metadata.toString(m_memory.size(), m_reader, cid, address));
         unlockAndUnpin(cid);
         return cid;
     }
@@ -305,6 +306,8 @@ public class HashMap<K, V> {
 
             // handle optional resize
             if (result.m_resized) {
+                if (m_memory.stats().getHeapStatus().getTotalSizeBytes() < ((long) Math.pow(2, Hashtable.getDepth(m_reader, m_hashtable_address) + 1) * Long.BYTES + 2))
+                    new MemoryRuntimeException("Total Bytes: " + m_memory.stats().getHeapStatus().getTotalSizeBytes() + " But want to allocate more");
                 m_hashtable_address = Hashtable.resize(m_reader, m_writer, m_memory.resize(), m_memory.pinning(), m_hashtable_cid, m_hashtable_address);
                 p_index = ExtendibleHashing.extendibleHashing(p_hash, Hashtable.getDepth(m_reader, m_hashtable_address));
                 p_cid = Hashtable.lookup(m_reader, m_hashtable_address, p_index);
@@ -655,8 +658,6 @@ public class HashMap<K, V> {
 
         // lock reentrant write lock
         m_lock.readLock().unlock();
-
-        log.warn(Arrays.toString(valueBytes));
 
         if (valueBytes == null)
             throw new NullPointerException();
