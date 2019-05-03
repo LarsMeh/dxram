@@ -47,7 +47,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         assert p_initialCapacity > 1 && (p_numberOfNodes > 0 || p_numberOfNodes == -1) && (short) p_keyBytes > 0 && (short) p_valueBytes > 0 &&
                 HashFunctions.isProperValue(p_hashFunctionId);
 
-        List<Short> onlinePeers = Collections.unmodifiableList(m_boot.getOnlinePeerIds());
+        List<Short> onlinePeers = m_boot.getOnlinePeerIds();//Collections.unmodifiableList(m_boot.getOnlinePeerIds());
 
         return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, onlinePeers,
                 p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId);
