@@ -55,6 +55,32 @@ public class HashMapTest {
     }
 
     @TestInstance(runOnNodeIdx = 1)
+    public void simplePutGetRemoveLocal(final DXRAM p_instance) {
+
+        DataStructureService service = p_instance.getService(DataStructureService.class);
+
+        HashMap<Integer, Integer> map = service.createHashMap(m_id, m_capac, m_nodes, 4, 4, (byte) 1);
+
+        for (int i = 0; i < 6; i++) {
+            map.put(i, i + 1);
+        }
+
+        Assert.assertEquals(6, map.size());
+
+        for (int i = 0; i < 6; i++) {
+            Assert.assertEquals(true, (i + 1) == map.get(i));
+        }
+
+        Assert.assertEquals(6, map.size());
+
+        for (int i = 0; i < 6; i++) {
+            Assert.assertEquals(true, (i + 1) == map.remove(i));
+        }
+
+        Assert.assertEquals(0, map.size());
+    }
+
+    @TestInstance(runOnNodeIdx = 1)
     public void complexPutAndRemoveLocal(final DXRAM p_instance) {
 
         DataStructureService service = p_instance.getService(DataStructureService.class);
@@ -156,7 +182,7 @@ public class HashMapTest {
 
         HashMap<Integer, Integer> map = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1);
 
-        for (int i = 0; i < 500000; i++) {
+        for (int i = 0; i < 1; i++) {
             map.put(i, i + 1);
         }
     }

@@ -3,9 +3,19 @@ package de.hhu.bsinfo.dxram.datastructure.util;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.security.InvalidParameterException;
+
+/**
+ * Converter for primitive data types into an byte array and vice versa by using big endian.
+ */
 public final class ConverterBigEndian {
 
-    /* Long - byte[]*/
+    /**
+     * Converts a long to a byte array.
+     *
+     * @param p_value will be converted.
+     * @return converted p_value.
+     */
     @Contract(pure = true)
     public static byte[] longToByteArray(long p_value) {
         byte[] arr = new byte[8];
@@ -27,9 +37,16 @@ public final class ConverterBigEndian {
         return arr;
     }
 
+    /**
+     * Converts a byte array to a long.
+     *
+     * @param p_arr will be converted.
+     * @return converted p_value.
+     * @throws InvalidParameterException
+     */
     @Contract(pure = true)
     public static long byteArrayToLong(byte[] p_arr) {
-        if (p_arr.length < 8) throw new IllegalArgumentException();
+        if (p_arr.length < 8) throw new InvalidParameterException();
 
         return (((long) p_arr[7]) & 0xFF) +
                 ((((long) p_arr[6]) & 0xFF) << 8) +
@@ -41,24 +58,35 @@ public final class ConverterBigEndian {
                 ((((long) p_arr[0]) & 0xFF) << 56);
     }
 
-    /* Int - byte[] */
-
+    /**
+     * Converts a int to a byte array.
+     *
+     * @param p_value will be converted.
+     * @return converted p_value.
+     */
     @Contract(pure = true)
-    public static byte[] intToByteArray(int l) {
+    public static byte[] intToByteArray(int p_value) {
         byte[] arr = new byte[4];
-        arr[3] = (byte) (l);
-        l >>>= 8;
-        arr[2] = (byte) (l);
-        l >>>= 8;
-        arr[1] = (byte) (l);
-        l >>>= 8;
-        arr[0] = (byte) (l);
+        arr[3] = (byte) (p_value);
+        p_value >>>= 8;
+        arr[2] = (byte) (p_value);
+        p_value >>>= 8;
+        arr[1] = (byte) (p_value);
+        p_value >>>= 8;
+        arr[0] = (byte) (p_value);
         return arr;
     }
 
+    /**
+     * Converts a byte array to a int.
+     *
+     * @param p_arr will be converted.
+     * @return converted p_value.
+     * @throws InvalidParameterException
+     */
     @Contract(pure = true)
     public static int byteArrayToInt(byte[] p_arr) {
-        if (p_arr.length < 4) throw new IllegalArgumentException();
+        if (p_arr.length < 4) throw new InvalidParameterException();
 
         int maxOffset = p_arr.length - 1;
         return p_arr[maxOffset] & 0xFF |
@@ -67,8 +95,12 @@ public final class ConverterBigEndian {
                 (p_arr[maxOffset - 3] & 0xFF) << 24;
     }
 
-    /* Short - byte[] */
-
+    /**
+     * Converts a short to a byte array.
+     *
+     * @param p_value will be converted.
+     * @return converted p_value.
+     */
     @Contract(pure = true)
     public static byte[] shortToByteArray(short p_value) {
         byte[] arr = new byte[2];
@@ -78,9 +110,16 @@ public final class ConverterBigEndian {
         return arr;
     }
 
+    /**
+     * Converts a byte array to a short.
+     *
+     * @param p_arr will be converted.
+     * @return converted p_value.
+     * @throws InvalidParameterException
+     */
     @Contract(pure = true)
     public static short byteArrayToShort(@NotNull byte[] p_arr) {
-        if (p_arr.length < 2) throw new IllegalArgumentException();
+        if (p_arr.length < 2) throw new InvalidParameterException();
         return (short) ((((short) p_arr[1]) & 0xFF) +
                 ((((short) p_arr[0]) & 0xFF) << 8));
     }

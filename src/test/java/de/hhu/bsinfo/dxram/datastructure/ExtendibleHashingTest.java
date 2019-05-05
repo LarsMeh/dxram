@@ -1,6 +1,5 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
-import de.hhu.bsinfo.dxram.datastructure.util.ConverterBigEndian;
 import de.hhu.bsinfo.dxram.datastructure.util.ConverterLittleEndian;
 import de.hhu.bsinfo.dxram.datastructure.util.ExtendibleHashing;
 import org.junit.Assert;
@@ -38,9 +37,6 @@ public class ExtendibleHashingTest {
         Assert.assertEquals(false, result);
 
         result = ExtendibleHashing.compareBitForDepth(suspect, 1);
-        Assert.assertEquals(false, result);
-
-        result = ExtendibleHashing.compareBitForDepth(suspect, 33);
         Assert.assertEquals(false, result);
     }
 

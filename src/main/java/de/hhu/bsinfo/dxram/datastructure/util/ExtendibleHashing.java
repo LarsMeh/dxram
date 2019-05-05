@@ -2,41 +2,52 @@ package de.hhu.bsinfo.dxram.datastructure.util;
 
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.NotNull;
 
+import java.security.InvalidParameterException;
+
+/**
+ * This class is a representation of the hash algorithm Extendible Hashing.
+ */
 public final class ExtendibleHashing {
 
     private static final Logger log = LogManager.getFormatterLogger(ExtendibleHashing.class);
 
-    public static boolean compareBitForDepth(final byte[] p_value, final int p_depth) {
-        if (p_value.length < 1 || p_depth > (p_value.length * 8)) {
+    private static final int BITMASK = Integer.parseInt("10000000", 2);
 
-            log.error("length or offset not in range: " + p_value.length);
+    /**
+     * It compares the value of the first four Bytes from Parameter p_value with a given depth.
+     * A depth of 1 means the highest Bit and a depth of 32 the lowest Bit.
+     *
+     * @param p_value will be compared.
+     * @param p_depth indicates the bit which will be compared.
+     * @return true if p_value has a 1 at the given depth.
+     * @throws InvalidParameterException
+     */
+    public static boolean compareBitForDepth(@NotNull final byte[] p_value, int p_depth) {
+        if (p_value.length < 1 || p_depth > (p_value.length * 8))
+            throw new InvalidParameterException("Invalid Value. Minimum 32-Bit.");
 
-            return false;
-        }
+        if (p_depth < 1 || p_depth > 32)
+            throw new InvalidParameterException("Invalid Depth");
 
-        if (p_depth < 1 || p_depth > 32) {
+        p_depth--;
 
-            log.error("Bit which should be compared is invalid");
-
-            return false;
-        }
-
-        int indexArray = 3 - (p_depth - 1) / 8;
-        int indexByte = 7 - (p_depth - 1) % 8;
-
-        byte bitmask = (byte) (1 << indexByte);
-        byte val = p_value[indexArray];
+        int bitmask = BITMASK >>> (p_depth % 8);
+        int val = p_value[3 - ((p_depth - 1) / 8)];
 
         return (val & bitmask) != 0;
     }
 
     /**
-     * calculates the index for a given hashmap value with extendable Hashing
+     * Calculates the index from a given ByteArray after the principe of ExtendibleHashing.
+     * This variant interpreted the depth from the highest to the lowest Bit. It means that a depth of 1 will
+     * represent as 1000 ... 0000 and a depth of 32 will be represent as 1111 ... 1111.
+     * Only 32-Bit will supported. If your depth is invalid it will return -1.
      *
-     * @param p_depth current depth
-     * @param p_array hashmap value
-     * @return calculated index from the part until the depth from a hashmap
+     * @param p_depth indicates the number of Bits (from highest to lowest) which will be relevant for the index.
+     * @param p_array is given value from which will the index be extracted.
+     * @return Calculated the index from the part until the depth (included).
      */
     public static int extendibleHashing(final byte[] p_array, final short p_depth) {
         if (p_depth < 1 || p_depth > 31 || p_depth > (p_array.length * 8)) {
@@ -46,16 +57,10 @@ public final class ExtendibleHashing {
             return -1;
         }
 
-        int bitmask = Integer.MIN_VALUE;
-        bitmask = bitmask >> (p_depth - 1);
+        int bitmask = Integer.MIN_VALUE >> (p_depth - 1);
+        int value = ConverterLittleEndian.byteArrayToInt(p_array);
 
-        int value = ConverterLittleEndian.byteArrayToInt(p_array); // car array length minimal 8
-
-        int result = (value & bitmask);
-
-        result >>>= (32 - p_depth);
-
-        return result;
+        return (value & bitmask) >>> (32 - p_depth);
     }
 
 }
