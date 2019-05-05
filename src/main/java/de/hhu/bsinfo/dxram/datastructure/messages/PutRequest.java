@@ -12,6 +12,13 @@ import de.hhu.bsinfo.dxutils.serialization.ObjectSizeUtil;
 
 import java.util.Arrays;
 
+/**
+ * This class represents a request for a put operation on a ChunkID, which represents a bucket.
+ *
+ * @see de.hhu.bsinfo.dxnet.core.Request
+ * @see de.hhu.bsinfo.dxnet.core.Message
+ * @see de.hhu.bsinfo.dxram.datastructure.messages.GetResponse
+ */
 public class PutRequest extends Request {
 
     private byte[] m_key;
@@ -20,9 +27,22 @@ public class PutRequest extends Request {
     private long m_cid;
     private byte m_hashFunctionId;
 
+    /**
+     * Empty constructor which is needed for dxnet.
+     */
     public PutRequest() {
     }
 
+    /**
+     * Constructs a PutRequest for a key-value pair.
+     *
+     * @param p_destination    target peer.
+     * @param p_key            key with which the specified value is to be associated.
+     * @param p_value          value to be associated with the specified key.
+     * @param p_tableDepth     represents the depth of the hashtable.
+     * @param p_cid            ChunkID where the key-value pair should be stored.
+     * @param p_hashFunctionId which indicates the hash algorithm is used by the HashMap
+     */
     public PutRequest(final short p_destination, final byte[] p_key, final byte[] p_value,
                       final short p_tableDepth, final long p_cid, final byte p_hashFunctionId) {
         super(p_destination, DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_PUT_REQ);
@@ -33,52 +53,60 @@ public class PutRequest extends Request {
         m_hashFunctionId = p_hashFunctionId;
     }
 
+    /**
+     * Returns the key.
+     *
+     * @return the key.
+     */
     public byte[] getKey() {
         return m_key;
     }
 
+    /**
+     * Returns the value.
+     *
+     * @return the value.
+     */
     public byte[] getValue() {
         return m_value;
     }
 
+    /**
+     * Returns the depth of the hashtable.
+     *
+     * @return
+     */
     public short getTableDepth() {
         return m_tableDepth;
     }
 
+    /**
+     * Returns the ChunkID where the key-value pair should be stored.
+     *
+     * @returnthe ChunkID where the key-value pair should be stored.
+     */
     public long getCid() {
         return m_cid;
     }
 
+    /**
+     * Returns the hashed key.
+     *
+     * @return the hashed key.
+     */
     public byte[] getHashedKey() {
         return HashFunctions.hash(m_hashFunctionId, m_key);
     }
 
+    /**
+     * Returns the id of the used hash algorithm.
+     *
+     * @return the id of the used hash algorithm.
+     */
     public byte getHashFunctionId() {
         return m_hashFunctionId;
     }
 
-
-    @Override
-    public String toString() {
-        StringBuilder builder = new StringBuilder();
-        builder.append("PutRequest\nFrom:");
-        builder.append(NodeID.toHexString(this.getSource()));
-        builder.append("\nTo:");
-        builder.append(NodeID.toHexString(this.getDestination()));
-        builder.append("\nBegin Data\nKey = ");
-        builder.append(Arrays.toString(m_key));
-        builder.append("\nValue = ");
-        builder.append(Arrays.toString(m_value));
-        builder.append("\nTable Depth = ");
-        builder.append(m_tableDepth);
-        builder.append("\nCid = ");
-        builder.append(ChunkID.toHexString(m_cid));
-        builder.append("\nhashFunctionId = ");
-        builder.append(HashFunctions.toString(m_hashFunctionId));
-        builder.append("\nEnd Data\n");
-
-        return builder.toString();
-    }
 
     @Override
     protected int getPayloadLength() {
@@ -102,4 +130,27 @@ public class PutRequest extends Request {
         p_exporter.writeLong(m_cid);
         p_exporter.writeByte(m_hashFunctionId);
     }
+
+    @Override
+    public String toString() {
+        StringBuilder builder = new StringBuilder();
+        builder.append("PutRequest\nFrom:");
+        builder.append(NodeID.toHexString(this.getSource()));
+        builder.append("\nTo:");
+        builder.append(NodeID.toHexString(this.getDestination()));
+        builder.append("\nBegin Data\nKey = ");
+        builder.append(Arrays.toString(m_key));
+        builder.append("\nValue = ");
+        builder.append(Arrays.toString(m_value));
+        builder.append("\nTable Depth = ");
+        builder.append(m_tableDepth);
+        builder.append("\nCid = ");
+        builder.append(ChunkID.toHexString(m_cid));
+        builder.append("\nhashFunctionId = ");
+        builder.append(HashFunctions.toString(m_hashFunctionId));
+        builder.append("\nEnd Data\n");
+
+        return builder.toString();
+    }
+
 }

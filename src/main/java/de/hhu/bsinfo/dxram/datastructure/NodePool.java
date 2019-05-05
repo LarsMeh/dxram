@@ -20,7 +20,7 @@ import java.util.Random;
  **/
 @PinnedMemory
 @NoParamCheck
-public class NodePool {
+class NodePool {
 
     private static final int SIZE_OFFSET;
     private static final int DATA_OFFSET;

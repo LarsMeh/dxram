@@ -20,7 +20,7 @@ import java.util.HashSet;
  **/
 @PinnedMemory
 @NoParamCheck
-public class Hashtable {
+class Hashtable {
 
     private static final Logger log = LogManager.getFormatterLogger(Hashtable.class);
 

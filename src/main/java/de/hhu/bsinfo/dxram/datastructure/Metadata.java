@@ -14,7 +14,7 @@ import de.hhu.bsinfo.dxmem.operations.*;
  **/
 @PinnedMemory
 @NoParamCheck
-public class Metadata {
+class Metadata {
 
     private static int HASHTABLE_CID_OFFSET;
     private static int NODEPOOL_CID_OFFSET;

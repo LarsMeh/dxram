@@ -30,7 +30,7 @@ import java.util.Arrays;
  **/
 @PinnedMemory
 @NoParamCheck
-public class Bucket {
+class Bucket {
 
     private static final Logger log = LogManager.getFormatterLogger(Bucket.class);
 
@@ -50,7 +50,7 @@ public class Bucket {
         LENGTH_BYTES = 2; // Short
     }
 
-    static class BucketRawData {
+    static class RawData {
 
         private static int HEADER_BYTES = Short.BYTES * 2;
 
@@ -92,7 +92,7 @@ public class Bucket {
         }
 
         /*** Private Usage ***/
-        private BucketRawData() {
+        private RawData() {
             m_byteStream = new ByteArrayOutputStream();
         }
 
@@ -118,7 +118,7 @@ public class Bucket {
 
         /*** Private Static Usage ***/
         private static void initialize(final RawWrite p_writer, final long p_address, final byte[] p_rawDataBytes) {
-            p_writer.writeInt(p_address, USED_BYTES_OFFSET, p_rawDataBytes.length - BucketRawData.HEADER_BYTES + DATA_OFFSET);
+            p_writer.writeInt(p_address, USED_BYTES_OFFSET, p_rawDataBytes.length - RawData.HEADER_BYTES + DATA_OFFSET);
             p_writer.writeShort(p_address, DEPTH_OFFSET, extractDepth(p_rawDataBytes));
             p_writer.writeShort(p_address, SIZE_OFFSET, extractSize(p_rawDataBytes));
             p_writer.write(p_address, DATA_OFFSET, p_rawDataBytes, 0, p_rawDataBytes.length - HEADER_BYTES);
@@ -156,7 +156,7 @@ public class Bucket {
      * @param p_address
      * @param p_rawData
      */
-    private static void initialize(final RawWrite p_writer, final long p_address, final BucketRawData p_rawData) {
+    private static void initialize(final RawWrite p_writer, final long p_address, final RawData p_rawData) {
         // write Header
         p_writer.writeInt(p_address, USED_BYTES_OFFSET, DATA_OFFSET + p_rawData.m_dataBytes);
         p_writer.writeShort(p_address, DEPTH_OFFSET, p_rawData.m_depth);
@@ -178,7 +178,7 @@ public class Bucket {
      * @param p_rawDataBytes
      */
     static void initialize(final RawWrite p_writer, final long p_address, final byte[] p_rawDataBytes) {
-        BucketRawData.initialize(p_writer, p_address, p_rawDataBytes);
+        RawData.initialize(p_writer, p_address, p_rawDataBytes);
     }
 
     /**
@@ -530,8 +530,8 @@ public class Bucket {
         splitBucket(p_reader, p_writer, p_own_address, p_address, p_hashId, true);
     }
 
-    private static Bucket.BucketRawData splitBucket(final RawRead p_reader, final RawWrite p_writer,
-                                                    final long p_own_address, final long p_address, final byte p_hashId, final boolean p_withInitialize) {
+    private static RawData splitBucket(final RawRead p_reader, final RawWrite p_writer,
+                                       final long p_own_address, final long p_address, final byte p_hashId, final boolean p_withInitialize) {
         // read information
         int usedBytes = p_reader.readInt(p_own_address, USED_BYTES_OFFSET);
         short size = p_reader.readShort(p_own_address, SIZE_OFFSET);
@@ -547,8 +547,8 @@ public class Bucket {
         int offset = DATA_OFFSET;
         int current_entry = 1;
 
-        // Create BucketRawData
-        Bucket.BucketRawData rawData = new BucketRawData();
+        // Create RawData
+        RawData rawData = new RawData();
         rawData.m_depth = depth;
 
         // helper variables
@@ -645,8 +645,8 @@ public class Bucket {
         return rawData;
     }
 
-    static Bucket.BucketRawData splitBucket(final RawRead p_reader, final RawWrite p_writer,
-                                            final long p_own_address, final byte p_hashId) {
+    static RawData splitBucket(final RawRead p_reader, final RawWrite p_writer,
+                               final long p_own_address, final byte p_hashId) {
         return splitBucket(p_reader, p_writer, p_own_address, -1L, p_hashId, false);
     }
 

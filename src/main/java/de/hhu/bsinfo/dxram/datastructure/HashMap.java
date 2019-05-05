@@ -430,7 +430,7 @@ public class HashMap<K, V> {
         } else {
 
             // allocated chunk is not on this peer
-            Bucket.BucketRawData rawData = Bucket.splitBucket(m_reader, m_writer, p_address, p_hashFunctionId);
+            Bucket.RawData rawData = Bucket.splitBucket(m_reader, m_writer, p_address, p_hashFunctionId);
 
             if (rawData == null)
                 throw new RuntimeException();

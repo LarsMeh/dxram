@@ -1,10 +1,14 @@
 package de.hhu.bsinfo.dxram.datastructure.messages;
 
-public class DataStructureMessageTypes {
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 
-    /**
-     * HashMap
-     **/
+/**
+ * This class holds all message sub- and sub-sub-types for the dxram message type {@value de.hhu.bsinfo.dxram.DXRAMMessageTypes#DATA_STRUCTURE_MESSAGE_TYPE}.
+ *
+ * @see de.hhu.bsinfo.dxram.DXRAMMessageTypes
+ */
+public class DataStructureMessageTypes {
 
     /*----HashMap----*/
 
@@ -47,6 +51,14 @@ public class DataStructureMessageTypes {
 
     }
 
+    /**
+     * Returns the string representation of the given sub- or sub-sub-type.
+     *
+     * @param p_type id of the sub- or sub-sub-type.
+     * @return the string representation of the given sub- or sub-sub-type.
+     */
+    @NotNull
+    @Contract(pure = true)
     public static String toString(final byte p_type) {
         switch (p_type) {
             case SUBTYPE_PUT_REQ:
