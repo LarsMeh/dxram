@@ -10,16 +10,16 @@ import de.hhu.bsinfo.dxram.boot.BootComponent;
 import de.hhu.bsinfo.dxram.chunk.ChunkComponent;
 import de.hhu.bsinfo.dxram.DXRAMMessageTypes;
 import de.hhu.bsinfo.dxram.datastructure.messages.*;
-import de.hhu.bsinfo.dxram.datastructure.util.HashFunctions;
 import de.hhu.bsinfo.dxram.engine.*;
 import de.hhu.bsinfo.dxram.nameservice.NameserviceComponent;
 import de.hhu.bsinfo.dxram.net.NetworkComponent;
 import de.hhu.bsinfo.dxutils.dependency.Dependency;
 
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.List;
+import java.security.InvalidParameterException;
 
+/**
+ * This class represents the data structure service for dxram. It should be used to create instances of a data structure and remove them without damage the system.
+ */
 @Module.Attributes(supportsSuperpeer = false, supportsPeer = true)
 public class DataStructureService extends Service<ModuleConfig> implements MessageReceiver {
 
@@ -38,14 +38,33 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
     private NameserviceComponent m_nameComponent;
 
 
+    /**
+     * Constructs a DataStructureService object.
+     */
     public DataStructureService() {
     }
 
-    /*** Create data structures ***/
+    /**
+     * Creates a HashMap.
+     *
+     * @param p_name            the registration name for the {@link de.hhu.bsinfo.dxram.nameservice.NameserviceComponent}.
+     * @param p_initialCapacity indicates the initial capacity of the HashMap.
+     * @param p_numberOfNodes   indicates on how many peers the HashMap should be stored her buckets.
+     * @param p_keyBytes        indicate how big is the key.
+     * @param p_valueBytes      indicate how big is the value.
+     * @param p_hashFunctionId  indicates which hash algorithm should be used.
+     * @param <K>               Generic type of the key.
+     * @param <V>               Generic type of the value.
+     * @return An object of a HashMap.
+     * @throws java.security.InvalidParameterException
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
     public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_numberOfNodes,
                                               final int p_keyBytes, final int p_valueBytes, final byte p_hashFunctionId) {
-        assert p_initialCapacity > 1 && (p_numberOfNodes > 0 || p_numberOfNodes == -1) && (short) p_keyBytes > 0 && (short) p_valueBytes > 0 &&
-                HashFunctions.isProperValue(p_hashFunctionId);
+
+        if (!HashMap.assertInitialParameter(p_name, p_initialCapacity, m_boot.getOnlinePeerIds(), p_numberOfNodes,
+                (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId))
+            throw new InvalidParameterException();
 
         //List<Short> onlinePeers = m_boot.getOnlinePeerIds();//Collections.unmodifiableList(m_boot.getOnlinePeerIds());
 
@@ -53,12 +72,23 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
                 p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId);
     }
 
-    /*** Registration ***/
-    void registerHashMap(final long p_cid, final String p_identifier) {
+    /**
+     * Register the ChunkID to a identifier.
+     *
+     * @param p_cid        ChunkID where the meta data or the data structure is stored to.
+     * @param p_identifier for the data structure.
+     */
+    void registerDataStructure(final long p_cid, final String p_identifier) {
         m_nameComponent.register(p_cid, p_identifier);
     }
 
-    /*** Network Communication ***/
+    /**
+     * Sends a synchronous request with the {@link de.hhu.bsinfo.dxram.net.NetworkComponent}.
+     *
+     * @param p_request which should be send.
+     * @param p_timeout maximum duration.
+     * @return the response of the request.
+     */
     public Response sendSync(final Request p_request, final int p_timeout) {
         try {
             m_network.sendSync(p_request, p_timeout);
@@ -70,6 +100,11 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         return p_request.getResponse();
     }
 
+    /**
+     * Sends a response to synchronous request with the {@link de.hhu.bsinfo.dxram.net.NetworkComponent}.
+     *
+     * @param p_response of the request.
+     */
     private void sendResponse(final Response p_response) {
         try {
             m_network.sendMessage(p_response);
@@ -79,6 +114,11 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         }
     }
 
+    /**
+     * Send a asynchronous message with the {@link de.hhu.bsinfo.dxram.net.NetworkComponent}.
+     *
+     * @param p_message which should be send.
+     */
     void sendAsync(final Message p_message) {
         try {
             m_network.sendMessage(p_message);
@@ -89,57 +129,102 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
 
 
     /**
-     * Handle Network Messages
-     **/
+     * Calls the handle method from the matching data structure.
+     *
+     * @param p_request for an operation on this peer.
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
     private void handlePutRequest(final PutRequest p_request) {
         LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handlePutRequest(p_request, m_chunk.getMemory()));
     }
 
+    /**
+     * Calls the handle method from the matching data structure.
+     *
+     * @param p_request for an operation on this peer.
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
     private void handleWriteBucketRequest(final WriteBucketRawDataRequest p_request) {
         LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handleWriteBucketRequest(p_request, m_chunk.getMemory()));
     }
 
+    /**
+     * Calls the handle method from the matching data structure.
+     *
+     * @param p_request for an operation on this peer.
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
     private void handleAllocateRequest(final AllocateChunkRequest p_request) {
         LOGGER.warn(p_request.toString());
         long cid = m_chunk.getMemory().create().create(p_request.getInitialBucketSize());
         sendResponse(new AllocateChunkResponse(p_request, cid));
     }
 
+    /**
+     * Calls the handle method from the matching data structure.
+     *
+     * @param p_request for an operation on this peer.
+     */
     private void handleRemoveRequest(final RemoveRequest p_request) {
         LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handleRemoveRequest(p_request, m_chunk.getMemory()));
     }
 
+    /**
+     * Calls the handle method from the matching data structure.
+     *
+     * @param p_request for an operation on this peer.
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
     private void handleRemoveWithKeyRequest(final RemoveRequest p_request) {
         LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handleRemoveWithKeyRequest(p_request, m_chunk.getMemory()));
     }
 
+    /**
+     * Calls the handle method from the matching data structure.
+     *
+     * @param p_request for an operation on this peer.
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
     private void handleGetRequest(final GetRequest p_request) {
         LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handleGetRequest(p_request, m_chunk.getMemory()));
     }
 
+    /**
+     * Calls the handle method from the matching data structure.
+     *
+     * @param p_message for an operation on this peer.
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
     private void handleClearMessage(final ClearMessage p_message) {
         LOGGER.warn(p_message.toString());
         HashMap.handleClearRequest(p_message, m_chunk.getMemory());
     }
 
 
-    /*** Peer Info's ***/
+    /**
+     * Returns true if the given nodeId is equal to the nodeId of this instance.
+     *
+     * @param p_suspect nodeId.
+     * @return true if the given nodeId is equal to the nodeId of this instance.
+     */
     public boolean isLocal(final short p_suspect) {
-        //LOGGER.info("isLocal call Success=" + (m_myNodeID == p_suspect));
         return m_myNodeID == p_suspect;
     }
 
+    /**
+     * Returns true if the given nodeId is equal to the nodeId of this instance.
+     *
+     * @param p_suspect nodeId.
+     * @return true if the given nodeId is equal to the nodeId of this instance.
+     */
     public boolean isLocal(final long p_suspect) {
-        //LOGGER.info("isLocal call Success=" + (m_myNodeID == ChunkID.getCreatorID(p_suspect)));
         return m_myNodeID == ChunkID.getCreatorID(p_suspect);
     }
-
-    /*** Override as a Service ***/
 
     @Override
     protected boolean startService(DXRAMConfig p_config) {
@@ -191,6 +276,13 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
             LOGGER.warn("MessageType unknown. Message could not be handled");
     }
 
+    /**
+     * Register all sub-types from class {@link de.hhu.bsinfo.dxram.datastructure.messages.DataStructureMessageTypes} to the network component.
+     *
+     * @see de.hhu.bsinfo.dxram.datastructure.messages.DataStructureMessageTypes
+     * @see de.hhu.bsinfo.dxram.DXRAMMessageTypes
+     * @see de.hhu.bsinfo.dxram.net.NetworkComponent
+     */
     private void registerNetworkMessages() {
         // Request
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_PUT_REQ, PutRequest.class);
@@ -211,6 +303,13 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_CLEAR_MESSAGE, ClearMessage.class);
     }
 
+    /**
+     * Register a listener for all sub-types from class {@link de.hhu.bsinfo.dxram.datastructure.messages.DataStructureMessageTypes} by the network component.
+     *
+     * @see de.hhu.bsinfo.dxram.datastructure.messages.DataStructureMessageTypes
+     * @see de.hhu.bsinfo.dxram.DXRAMMessageTypes
+     * @see de.hhu.bsinfo.dxram.net.NetworkComponent
+     */
     private void registerNetworkMessageListener() {
         // Request
         m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_PUT_REQ, this);

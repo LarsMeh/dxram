@@ -60,10 +60,8 @@ public class NameserviceComponent extends Component<NameserviceComponentConfig> 
     /**
      * Register a AbstractChunk for a specific name.
      *
-     * @param p_chunk
-     *         AbstractChunk to register.
-     * @param p_name
-     *         Name to associate with the ID of the AbstractChunk.
+     * @param p_chunk AbstractChunk to register.
+     * @param p_name  Name to associate with the ID of the AbstractChunk.
      */
     public void register(final AbstractChunk p_chunk, final String p_name) {
         register(p_chunk.getID(), p_name);
@@ -72,10 +70,8 @@ public class NameserviceComponent extends Component<NameserviceComponentConfig> 
     /**
      * Register a chunk id for a specific name.
      *
-     * @param p_chunkId
-     *         Chunk id to register.
-     * @param p_name
-     *         Name to associate with the ID of the AbstractChunk.
+     * @param p_chunkId Chunk id to register.
+     * @param p_name    Name to associate with the ID of the AbstractChunk.
      */
     public void register(final long p_chunkId, final String p_name) {
         try {
@@ -93,11 +89,9 @@ public class NameserviceComponent extends Component<NameserviceComponentConfig> 
     /**
      * Get the chunk ID of the specific name from the service.
      *
-     * @param p_name
-     *         Registered name to get the chunk ID for.
-     * @param p_timeoutMs
-     *         Timeout for trying to get the entry (if it does not exist, yet).
-     *         set this to -1 for infinite loop if you know for sure, that the entry has to exist
+     * @param p_name      Registered name to get the chunk ID for.
+     * @param p_timeoutMs Timeout for trying to get the entry (if it does not exist, yet).
+     *                    set this to -1 for infinite loop if you know for sure, that the entry has to exist
      * @return If the name was registered with a chunk ID before, returns the chunk ID, -1 otherwise.
      */
     public long getChunkID(final String p_name, final int p_timeoutMs) {
@@ -212,10 +206,8 @@ public class NameserviceComponent extends Component<NameserviceComponentConfig> 
     /**
      * Inserts the nameservice entry to chunk with LocalID 0 for backup
      *
-     * @param p_key
-     *         the key
-     * @param p_chunkID
-     *         the ChunkID
+     * @param p_key     the key
+     * @param p_chunkID the ChunkID
      * @return whether this operation was successful
      */
     private boolean insertMapping(final int p_key, final long p_chunkID) {
@@ -265,5 +257,15 @@ public class NameserviceComponent extends Component<NameserviceComponentConfig> 
         }
 
         return true;
+    }
+
+    /**
+     * Returns true if the name for a register has between 1 and 5 characters. Both are included.
+     *
+     * @param p_name which should be used for a registration.
+     * @return true if the name for a register has between 1 and 5 characters.
+     */
+    public static boolean hasCorrectNameFormat(final String p_name) {
+        return p_name.length() > 0 && p_name.length() < 6;
     }
 }

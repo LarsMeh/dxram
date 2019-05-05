@@ -12,6 +12,7 @@ import de.hhu.bsinfo.dxmem.operations.RawRead;
 import de.hhu.bsinfo.dxmem.operations.RawWrite;
 import de.hhu.bsinfo.dxram.datastructure.messages.*;
 import de.hhu.bsinfo.dxram.datastructure.util.*;
+import de.hhu.bsinfo.dxram.nameservice.NameserviceComponent;
 import de.hhu.bsinfo.skema.Skema;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
@@ -97,7 +98,7 @@ public class HashMap<K, V> {
         m_metaData_address = m_memory.pinning().pin(m_metaData_cid).getAddress();
 
         // Register Metadata
-        m_service.registerHashMap(m_metaData_cid, p_name);
+        m_service.registerDataStructure(m_metaData_cid, p_name);
     }
 
     // TODO:
@@ -929,6 +930,14 @@ public class HashMap<K, V> {
     public V getOrDefault(final K p_key, final V p_defaultValue) {
         V ret = this.get(p_key);
         return ret == null ? p_defaultValue : ret;
+    }
+
+    static boolean assertInitialParameter(final String p_name, final int p_initialCapacity, final List<Short> p_onlinePeers,
+                                          final int p_numberOfNodes, final short p_keyBytes, final short p_valueBytes,
+                                          final byte p_hashFunctionId) {
+        return p_initialCapacity > 1 && (p_numberOfNodes > 0 || p_numberOfNodes == -1) && p_keyBytes > 0 &&
+                p_valueBytes > 0 && HashFunctions.isProperValue(p_hashFunctionId) && p_onlinePeers.size() > 1 &&
+                NameserviceComponent.hasCorrectNameFormat(p_name);
     }
 
 
