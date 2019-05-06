@@ -1,6 +1,8 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
 import de.hhu.bsinfo.dxmem.DXMem;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.junit.Test;
 
 /**
@@ -10,48 +12,54 @@ import org.junit.Test;
  */
 public class BucketTest {
 
+    private static final Logger log = LogManager.getFormatterLogger(BucketTest.class);
+
     @Test
     public void runStructuredTest() {
-        DXMem memory = new DXMem((short) 0xAACD, 10000000);
-        long cid = memory.create().create(200);
-        long cid_2 = memory.create().create(200);
+        if (HashMap.BUCKET_ENTRIES == 4) {
+            DXMem memory = new DXMem((short) 0xAACD, 10000000);
+            long cid = memory.create().create(200);
+            long cid_2 = memory.create().create(200);
 
-        BucketStructuredTest structuredTest = new BucketStructuredTest(memory, cid, cid_2);
+            BucketStructuredTest structuredTest = new BucketStructuredTest(memory, cid, cid_2);
 
-        System.out.println("INIT");
-        structuredTest.init();
+            System.out.println("INIT");
+            structuredTest.init();
 
-        System.out.println("PUT");
-        structuredTest.put();
+            System.out.println("PUT");
+            structuredTest.put();
 
-        System.out.println("CONTAINS");
-        structuredTest.contains();
+            System.out.println("CONTAINS");
+            structuredTest.contains();
 
-        System.out.println("GET");
-        structuredTest.get();
+            System.out.println("GET");
+            structuredTest.get();
 
-        System.out.println("REMOVE");
-        structuredTest.remove();
+            System.out.println("REMOVE");
+            structuredTest.remove();
 
-        System.out.println("PUT");
-        structuredTest.put();
+            System.out.println("PUT");
+            structuredTest.put();
 
-        System.out.println("REMOVE");
-        structuredTest.remove2();
+            System.out.println("REMOVE");
+            structuredTest.remove2();
 
-        System.out.println("PUT");
-        structuredTest.put();
+            System.out.println("PUT");
+            structuredTest.put();
 
-        System.out.println("SIZE FOR FIT");
-        structuredTest.sizeForFit(200, 0);
-        structuredTest.sizeForFit(200, 144);
-        structuredTest.sizeForFit(201, 145);
-        structuredTest.sizeForFit(200, -100);
+            System.out.println("SIZE FOR FIT");
+            structuredTest.sizeForFit(200, 0);
+            structuredTest.sizeForFit(200, 144);
+            structuredTest.sizeForFit(201, 145);
+            structuredTest.sizeForFit(200, -100);
 
-        System.out.println("BUCKET SPLIT");
-        structuredTest.splitBucketVisualize();
+            System.out.println("BUCKET SPLIT");
+            structuredTest.splitBucketVisualize();
 
-        structuredTest.end();
+            structuredTest.end();
+        } else {
+            log.warn("BucketTest could only be entered, when HashMap.BUCKET_ENTRIES is 4");
+        }
     }
 
     @Test

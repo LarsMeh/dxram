@@ -182,7 +182,7 @@ public class HashMapTest {
 
         HashMap<Integer, Integer> map = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1);
 
-        for (int i = 0; i < 1; i++) {
+        for (int i = 0; i < 1000000; i++) {
             map.put(i, i + 1);
         }
     }
