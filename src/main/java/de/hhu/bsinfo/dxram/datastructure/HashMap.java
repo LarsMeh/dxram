@@ -238,7 +238,6 @@ public class HashMap<K, V> {
         final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address));
         final long cid = Hashtable.lookup(m_reader, m_hashtable_address, index); // Lookup in Hashtable
 
-
         return putLoop(cid, index, hash, key, value);
     }
 
@@ -912,7 +911,7 @@ public class HashMap<K, V> {
                                           final int p_numberOfNodes, final short p_keyBytes, final short p_valueBytes,
                                           final byte p_hashFunctionId) {
         return p_initialCapacity > 1 && (p_numberOfNodes > 0 || p_numberOfNodes == -1) && p_keyBytes > 0 &&
-                p_valueBytes > 0 && HashFunctions.isProperValue(p_hashFunctionId) && p_onlinePeers.size() > 1 &&
+                p_valueBytes > 0 && HashFunctions.isProperValue(p_hashFunctionId) && p_onlinePeers.size() > 0 &&
                 NameserviceComponent.hasCorrectNameFormat(p_name);
     }
 

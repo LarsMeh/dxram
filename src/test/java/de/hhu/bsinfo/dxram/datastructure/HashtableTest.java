@@ -8,7 +8,7 @@ public class HashtableTest {
 
     @Test
     public void runStructuredTest() {
-        DXMem memory = new DXMem((short) 0xAACD, 10000000);
+        DXMem memory = new DXMem((short) 0xAACD, 100000000);
         int initialSize = (int) Math.pow(2, 2) * Long.BYTES + 2;
         long cid = memory.create().create(initialSize);
 
@@ -40,14 +40,23 @@ public class HashtableTest {
 
 
         String expect;
+        boolean exc = false;
 
         System.out.println("RESIZE");
         expect = "*********************************************************************************************HashtableChunkSize:66Bytes***HEADER***Depth:3***DATA***0xAAAA<==20xAAAA<==100xBBBB<==180xBBBB<==260xCCCC<==340xCCCC<==420xDDDD<==500xDDDD<==58*********************************************************************************************";
-        structuredTest.resize(expect, 3);
+        try {
+            structuredTest.resize(expect, 3);
+        } catch (RuntimeException p_e) {
+            exc = true;
+        }
 
         System.out.println("RESIZE");
         expect = "*********************************************************************************************HashtableChunkSize:130Bytes***HEADER***Depth:4***DATA***0xAAAA<==20xAAAA<==100xAAAA<==180xAAAA<==260xBBBB<==340xBBBB<==420xBBBB<==500xBBBB<==580xCCCC<==660xCCCC<==740xCCCC<==820xCCCC<==900xDDDD<==980xDDDD<==1060xDDDD<==1140xDDDD<==122*********************************************************************************************";
-        structuredTest.resize(expect, 4);
+        try {
+            structuredTest.resize(expect, 4);
+        } catch (RuntimeException p_e) {
+            exc = true;
+        }
 
         System.out.println("LOOKUP");
         structuredTest.lookup(Skema.serialize(0xAAAA), 0);
@@ -59,6 +68,7 @@ public class HashtableTest {
         structuredTest.lookup(Skema.serialize(0xDDDD), 12);
         structuredTest.lookup(Skema.serialize(0xDDDD), 15);
 
-        structuredTest.end();
+        if (!exc)
+            structuredTest.end();
     }
 }

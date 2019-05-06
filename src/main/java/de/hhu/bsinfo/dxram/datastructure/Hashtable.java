@@ -229,7 +229,7 @@ class Hashtable {
             offset += Long.BYTES;
         }
 
-        return p_memorySize;
+        return p_memorySize - DATA_OFFSET;
     }
 
     /**

@@ -66,8 +66,6 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
                 (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId))
             throw new InvalidParameterException();
 
-        //List<Short> onlinePeers = m_boot.getOnlinePeerIds();//Collections.unmodifiableList(m_boot.getOnlinePeerIds());
-
         return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),
                 p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId);
     }

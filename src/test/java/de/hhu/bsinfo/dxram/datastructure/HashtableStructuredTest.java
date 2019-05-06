@@ -6,7 +6,7 @@ import org.junit.Assert;
 public class HashtableStructuredTest extends StructuredTest {
 
     public HashtableStructuredTest(DXMem p_memory, final long p_cid) {
-        super(p_memory,p_cid);
+        super(p_memory, p_cid);
     }
 
     @Override
@@ -34,10 +34,11 @@ public class HashtableStructuredTest extends StructuredTest {
         //System.out.println(Hashtable.toString(m_size, m_reader, m_cid, m_address));
     }
 
-    public void resize(String p_expectedOutput, final int p_expected) {
+    public void resize(String p_expectedOutput, final int p_expected) throws RuntimeException {
 
         // Test
         long retAddress = Hashtable.resize(m_reader, m_writer, m_memory.resize(), m_memory.pinning(), m_cid, m_address);
+
 
         if (retAddress != m_address)
             m_address = retAddress;
@@ -46,6 +47,7 @@ public class HashtableStructuredTest extends StructuredTest {
         String result = Hashtable.toString(m_size, m_reader, m_cid, m_address).replace(" ", "").replace("\n", "");
         Assert.assertEquals(p_expectedOutput, result);
         Assert.assertEquals(p_expected, Hashtable.getDepth(m_reader, m_address));
+
 
     }
 
