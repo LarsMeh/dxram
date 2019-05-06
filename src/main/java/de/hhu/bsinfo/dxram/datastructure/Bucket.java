@@ -14,7 +14,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 
 /**
- * This class could only be used while the Memory is pinned.
+ * This class could only be used while the Memory is pinned. It represents a memory layout of a bucket. A bucktet is
+ * a construct from the hash algorithm ExtendibleHashing. It holds a number of key-value pairs.
  * <p>
  * Memory
  * +------------------------------------------------------------------------+
@@ -27,6 +28,12 @@ import java.util.Arrays;
  * +-------------------------+
  * <p>
  * Key or Value could only be 2^15 bytes big
+ *
+ * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+ * @see de.hhu.bsinfo.dxmem.operations.RawWrite
+ * @see de.hhu.bsinfo.dxmem.operations.RawRead
+ * @see de.hhu.bsinfo.dxmem.operations.Size
+ * @see de.hhu.bsinfo.dxmem.operations.Resize
  **/
 @PinnedMemory
 @NoParamCheck
@@ -50,8 +57,13 @@ class Bucket {
         LENGTH_BYTES = 2; // Short
     }
 
+    /**
+     * This static class represents a raw format for a bucket. With method {@link #getByteArray()} you get the raw
+     * format as bytes for sending them over the network. The class is similar to a Builder.
+     */
     static class RawData {
 
+        // TODO: optimize this class
         private static int HEADER_BYTES = Short.BYTES * 2;
 
         private ByteArrayOutputStream m_byteStream;
@@ -59,64 +71,133 @@ class Bucket {
         private short m_depth;
         private int m_dataBytes;
 
-        /*** Package Private Usage***/
-
+        /**
+         * Returns the raw data as byte array.
+         *
+         * @return the raw data as byte array.
+         */
         byte[] getByteArray() {
             appendHeader();
             return m_byteStream.toByteArray();
         }
 
+        /**
+         * Appends a key with his length. A key indicates a new key-value pair, so the size will be increased.
+         *
+         * @param p_length length of param p_bytes.
+         * @param p_bytes  key as byte array.
+         */
         void appendKey(final short p_length, final byte[] p_bytes) {
             m_size++;
             append(p_length, p_bytes);
         }
 
+        /**
+         * Appends a value with his length. This method should be called after {@link #appendKey(short, byte[])}.
+         * The reason why the length is a paramter is that the length will be read as short from the memory. Then to discard
+         * the short and casts the length from p_bytes to short needs longer. If the length field will be changed to Integer
+         * there is no reason for a parameter length.
+         *
+         * @param p_length length of param p_bytes.
+         * @param p_bytes  value as byte array.
+         */
         void appendValue(final short p_length, final byte[] p_bytes) {
             append(p_length, p_bytes);
         }
 
+        /**
+         * Returns true if size is equal to 0. That means {@link #appendKey(short, byte[])} was never called before.
+         *
+         * @return true if field size == 0
+         */
         boolean isEmpty() {
             return m_size == 0;
         }
 
+        /**
+         * Returns the number of stored key-value pairs.
+         *
+         * @return the number of stored key-value pairs.
+         */
         public short getSize() {
             return m_size;
         }
 
+        /**
+         * Returns the depth from this bucket.
+         *
+         * @returnthe depth from this bucket.
+         */
         public short getDepth() {
             return m_depth;
         }
 
+        /**
+         * Returns the data without the header.
+         *
+         * @return the data without the header.
+         */
         public int getDataBytes() {
             return m_dataBytes;
         }
 
-        /*** Private Usage ***/
+        /**
+         * Constructs a RawData object by initialize a {@link java.io.ByteArrayOutputStream}.
+         *
+         * @see java.io.ByteArrayOutputStream
+         */
         private RawData() {
             m_byteStream = new ByteArrayOutputStream();
         }
 
+        /**
+         * Private method which appends a byte array with his length by writing it into the stream.
+         * Methods {@link #appendKey(short, byte[])}, {@link #appendValue(short, byte[])} will call this.
+         *
+         * @param p_length length of parameter p_bytes
+         * @param p_bytes  byte array which will written into the stream.
+         */
         private void append(final short p_length, final byte[] p_bytes) {
             try {
+
                 m_byteStream.write(ConverterLittleEndian.shortToByteArray(p_length));
                 m_byteStream.write(p_bytes);
+
             } catch (IOException p_e) {
+
                 p_e.printStackTrace();
             }
             m_dataBytes += Short.BYTES + p_length;
         }
 
+        /**
+         * Appends the header size and depth for this bucket by writing them into the stream. This method will close the stream.
+         */
         private void appendHeader() {
             try {
+
                 m_byteStream.write(ConverterLittleEndian.shortToByteArray(m_size));
                 m_byteStream.write(ConverterLittleEndian.shortToByteArray(m_depth));
+
             } catch (IOException p_e) {
+
                 p_e.printStackTrace();
+
+            } finally {
+
+                m_byteStream.close();
             }
         }
 
 
-        /*** Private Static Usage ***/
+        /**
+         * Initializes the bucket. It will extract the informations from the raw format and will write into the memory.
+         *
+         * @param p_writer       DXMem writer for direct memory access.
+         * @param p_address      where the bucket is stored.
+         * @param p_rawDataBytes bucket in raw format.
+         * @see de.hhu.bsinfo.dxmem.operations.RawWrite
+         */
         private static void initialize(final RawWrite p_writer, final long p_address, final byte[] p_rawDataBytes) {
             p_writer.writeInt(p_address, USED_BYTES_OFFSET, p_rawDataBytes.length - RawData.HEADER_BYTES + DATA_OFFSET);
             p_writer.writeShort(p_address, DEPTH_OFFSET, extractDepth(p_rawDataBytes));
@@ -124,26 +205,44 @@ class Bucket {
             p_writer.write(p_address, DATA_OFFSET, p_rawDataBytes, 0, p_rawDataBytes.length - HEADER_BYTES);
         }
 
+        /**
+         * Extracts the depth from a raw format of a bucket.
+         *
+         * @param p_rawDataBytes bucket in raw format.
+         * @return extracted depth.
+         */
         private static short extractDepth(final byte[] p_rawDataBytes) {
             return ConverterLittleEndian.byteArrayToShort(p_rawDataBytes, p_rawDataBytes.length - 1);
         }
 
+        /**
+         * Extracts the size from a raw format of a bucket.
+         *
+         * @param p_rawDataBytes bucket in raw format.
+         * @return extracted size.
+         */
         private static short extractSize(final byte[] p_rawDataBytes) {
             return ConverterLittleEndian.byteArrayToShort(p_rawDataBytes, p_rawDataBytes.length - 3);
         }
     }
 
     /**
-     * @return
+     * Returns the initial memory size which this bucket needs.
+     *
+     * @return the initial memory size which this bucket needs.
      */
     static int getInitialMemorySize() {
+        //TODO: connect with calc individual size
         return DATA_OFFSET;
     }
 
     /**
-     * @param p_writer
-     * @param p_address
-     * @param p_depth
+     * Initializes the bucket by setting the header.
+     *
+     * @param p_writer  DXMem writer for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @param p_depth   depth of the bucket.
+     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
     static void initialize(final RawWrite p_writer, final long p_address, final short p_depth) {
         p_writer.writeInt(p_address, USED_BYTES_OFFSET, DATA_OFFSET);
@@ -152,9 +251,12 @@ class Bucket {
     }
 
     /**
-     * @param p_writer
-     * @param p_address
-     * @param p_rawData
+     * Initializes the bucket from a bucket in raw data format. This method will call by {@link #splitBucket(RawRead, RawWrite, long, long, byte, boolean)}.
+     *
+     * @param p_writer  DXMem writer for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @param p_rawData bucket which will written to the memory.
+     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
     private static void initialize(final RawWrite p_writer, final long p_address, final RawData p_rawData) {
         // write Header
@@ -162,50 +264,53 @@ class Bucket {
         p_writer.writeShort(p_address, DEPTH_OFFSET, p_rawData.m_depth);
         p_writer.writeShort(p_address, SIZE_OFFSET, p_rawData.m_size);
 
-        // write Data
-        if (p_rawData.m_size > 0)
+        if (p_rawData.m_size > 0) // write Data
             p_writer.write(p_address, DATA_OFFSET, p_rawData.m_byteStream.toByteArray());
     }
 
 
     /**
-     * initializer if you send over the network or you only got the byte-array from inner class
-     * RawData.
-     * It will overwrite the Chunk and will fill it with the data from p_rawDataBytes.
+     * Initializer if you send the bucket over the network.
      *
-     * @param p_writer
-     * @param p_address
-     * @param p_rawDataBytes
+     * @param p_writer       DXMem writer for direct memory access.
+     * @param p_address      where the bucket is stored.
+     * @param p_rawDataBytes bucket which will written to the memory.
      */
     static void initialize(final RawWrite p_writer, final long p_address, final byte[] p_rawDataBytes) {
         RawData.initialize(p_writer, p_address, p_rawDataBytes);
     }
 
     /**
-     * @param p_reader
-     * @param p_address
-     * @return
+     * Returns true if the number of stored key-value pairs is equal to the maximum entries a bucket could have.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @return true if the number of stored key-value pairs is equal to the maximum entries a bucket could have.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap#BUCKET_ENTRIES
      */
     static boolean isFull(final RawRead p_reader, final long p_address) {
         return p_reader.readShort(p_address, SIZE_OFFSET) == HashMap.BUCKET_ENTRIES;
     }
 
     /**
-     * @param p_reader
-     * @param p_address
-     * @param p_key
-     * @return
+     * Returns true if the bucket has stored a key which is equal to parameter p_key.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @param p_key     which will look after.
+     * @return true if the bucket has stored a key which is equal to parameter p_key.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
     static boolean contains(final RawRead p_reader, final long p_address, final byte[] p_key) {
+        // TODO: return offset and extra function for contains with default value
         short size = p_reader.readShort(p_address, SIZE_OFFSET);
-        if (size < 1)
-            return false;
+        assert size > 0
 
-        // run through data
         int right_offset = DATA_OFFSET;
         int current_entry = 1;
 
-        while (current_entry <= size) {
+        while (current_entry <= size) { // run through data
 
             // read key
             short length = p_reader.readShort(p_address, right_offset);
@@ -214,14 +319,11 @@ class Bucket {
             p_reader.read(p_address, right_offset, stored_key);
             right_offset += length;
 
-            // compare keys
-            if (Arrays.equals(stored_key, p_key))
+            if (Arrays.equals(stored_key, p_key)) // compare keys
                 return true;
 
-            // skip value
-            right_offset += LENGTH_BYTES + p_reader.readShort(p_address, right_offset);
+            right_offset += LENGTH_BYTES + p_reader.readShort(p_address, right_offset); // skip value
 
-            // increment current entry
             current_entry++;
         }
 
@@ -229,76 +331,96 @@ class Bucket {
     }
 
     /**
-     * @param p_reader
-     * @param p_address
-     * @return
+     * Returns the stored depth of the bucket.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @return the stored depth of the bucket.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
     static short getDepth(final RawRead p_reader, final long p_address) {
         return p_reader.readShort(p_address, DEPTH_OFFSET);
     }
 
     /**
-     * @param p_reader
-     * @param p_address
-     * @return
+     * Returns the stored size of the bucket.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @return the stored size of the bucket.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
     static short getSize(final RawRead p_reader, final long p_address) {
         return p_reader.readShort(p_address, SIZE_OFFSET);
     }
 
+    // TODO: correct link to size method
+
     /**
-     * @param p_reader
-     * @param p_address
-     * @param p_withoutHeader
-     * @return
+     * Returns the used bytes which occupy the stored key-value pairs in space and adds the header bytes. With
+     * parameter p_withoutHeader the header bytes will not be added. The return value should at any time be less than
+     * the return value of {@link de.hhu.bsinfo.dxmem.operations.Size#size()}. If not then was written over the
+     * allocated memory size for this bucket.
+     *
+     * @param p_reader        DXMem reader for direct memory access.
+     * @param p_address       where the bucket is stored.
+     * @param p_withoutHeader indicates if the heade bytes should be subtract or not.
+     * @return the used bytes which occupy the stored key-value pairs in space and adds the header bytes.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
     static int getUsedBytes(final RawRead p_reader, final long p_address, final boolean p_withoutHeader) {
         return p_reader.readInt(p_address, USED_BYTES_OFFSET) - (p_withoutHeader ? DATA_OFFSET : 0);
     }
 
     /**
-     * @param p_reader
-     * @param p_size
-     * @param p_cid
-     * @param p_address
-     * @param p_bytes
-     * @return
+     * Determine if a put operation for a key-value pair will take more memory space than allocated.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_size    DXmem size-operation.
+     * @param p_cid     of the bucket.
+     * @param p_address where the bucket is stored.
+     * @param p_bytes   space which will need the key value pair.
+     * @return true if the key-value pair could be inserted without resize the bucket.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.Size
      */
     static boolean isEnoughSpace(final RawRead p_reader, final Size p_size, final long p_cid, final long p_address, final int p_bytes) {
-        // allocated size of the bucket
-        int max_size = p_size.size(p_cid);
-        // used bytes by the bucket
-        int used = p_reader.readInt(p_address, USED_BYTES_OFFSET);
+        int max_size = p_size.size(p_cid); // allocated size of the bucket
+        int used = p_reader.readInt(p_address, USED_BYTES_OFFSET); // used bytes by the bucket
 
         return (max_size - used) >= p_bytes;
     }
 
     /**
-     * @param p_reader
-     * @param p_size
-     * @param p_cid
-     * @param p_address
-     * @param p_bytes
-     * @return
+     * Returns the size which needs the bucket to stored the given bytes.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_size    DXmem size-operation.
+     * @param p_cid     of the bucket.
+     * @param p_address where the bucket is stored.
+     * @param p_bytes   space which will need the key value pair.
+     * @return the size which needs the bucket to stored the given bytes.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.Size
      */
     static int sizeForFit(final RawRead p_reader, final Size p_size, final long p_cid, final long p_address, final int p_bytes) {
-        // allocated size of the bucket
-        int max_size = p_size.size(p_cid);
-        // space between max and used
-        int space = max_size - p_reader.readInt(p_address, USED_BYTES_OFFSET);
+        int max_size = p_size.size(p_cid); // allocated size of the bucket
+        int space = max_size - p_reader.readInt(p_address, USED_BYTES_OFFSET); // space between max and used
 
-        if (space >= p_bytes)
-            return max_size;
-        else
-            return max_size + (p_bytes - space);
+        return space >= p_bytes ? max_size : max_size + p_bytes - space;
     }
 
     /**
-     * @param p_reader
-     * @param p_writer
-     * @param p_address
-     * @param p_key
-     * @return
+     * Removes a key-value pair from this bucket. The key will identifie the pair. The method returns the matching
+     * value.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_writer  DXMem writer for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @param p_key     key as byte array.
+     * @return the matching value or null if the pair is not stored.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
     static byte[] remove(final RawRead p_reader, final RawWrite p_writer, final long p_address, final byte[] p_key) {
         // read information
@@ -306,15 +428,13 @@ class Bucket {
         short size = p_reader.readShort(p_address, SIZE_OFFSET);
         assert size > 0;
 
-        // run through data
         int right_offset = DATA_OFFSET;
         int left_offset;
         int current_entry = 1;
 
-        while (current_entry <= size) {
+        while (current_entry <= size) { // run through data
 
-            // bring offset's together
-            left_offset = right_offset;
+            left_offset = right_offset; // bring offset's together
 
             // read key
             short length = p_reader.readShort(p_address, right_offset);
@@ -323,8 +443,7 @@ class Bucket {
             p_reader.read(p_address, right_offset, stored_key);
             right_offset += length;
 
-            // compare keys
-            if (Arrays.equals(stored_key, p_key)) {
+            if (Arrays.equals(stored_key, p_key)) { // compare keys
 
                 // save value for return
                 length = p_reader.readShort(p_address, right_offset);
@@ -333,8 +452,7 @@ class Bucket {
                 p_reader.read(p_address, right_offset, stored_value);
                 right_offset += length;
 
-                // close space
-                if (size - 1 > 0)
+                if (size - 1 > 0) // close space
                     copy(p_reader, p_writer, p_address, right_offset, usedBytes - right_offset, left_offset);
 
                 // update used bytes
@@ -357,27 +475,31 @@ class Bucket {
     }
 
     /**
-     * @param p_reader
-     * @param p_writer
-     * @param p_address
-     * @param p_key
-     * @param p_value
-     * @return
-     */
+     * Removes a key-value pair from this bucket. The key and the value will identifie the pair. The method returns true
+     * if a matching key-value pair is stored.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_writer  DXMem writer for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @param p_key     key as byte array.
+     * @param p_value   value as byte array.
+     * @return the matching value or null if the pair is not stored.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
+     **/
     static boolean remove(final RawRead p_reader, final RawWrite p_writer, final long p_address, final byte[] p_key, final byte[] p_value) {
         // read information
         int usedBytes = p_reader.readInt(p_address, USED_BYTES_OFFSET);
         short size = p_reader.readShort(p_address, SIZE_OFFSET);
         assert size > 0;
 
-        // run through data
         int right_offset = DATA_OFFSET;
         int left_offset;
         int current_entry = 1;
 
-        while (current_entry <= size) {
-            // bring offset's together
-            left_offset = right_offset;
+        while (current_entry <= size) { // run through data
+
+            left_offset = right_offset; // bring offset's together
 
             // read key
             short length = p_reader.readShort(p_address, right_offset);
@@ -386,8 +508,7 @@ class Bucket {
             p_reader.read(p_address, right_offset, stored_key);
             right_offset += length;
 
-            // compare keys
-            if (Arrays.equals(stored_key, p_key)) {
+            if (Arrays.equals(stored_key, p_key)) { // compare keys
 
                 length = p_reader.readShort(p_address, right_offset);
                 byte[] stored_value = new byte[length];
@@ -395,10 +516,9 @@ class Bucket {
                 p_reader.read(p_address, right_offset, stored_value);
                 right_offset += length;
 
-                if (Arrays.equals(stored_value, p_value)) {
+                if (Arrays.equals(stored_value, p_value)) { // compare values
 
-                    // close space
-                    if (size - 1 > 0)
+                    if (current_entry > 1 && current_entry < size) // close space TODO: test
                         copy(p_reader, p_writer, p_address, right_offset, usedBytes - right_offset, left_offset);
 
                     // update used bytes
@@ -411,10 +531,8 @@ class Bucket {
                 }
             }
 
-            // skip value
-            right_offset += LENGTH_BYTES + p_reader.readShort(p_address, right_offset);
+            right_offset += LENGTH_BYTES + p_reader.readShort(p_address, right_offset); // skip value
 
-            // increment current entry
             current_entry++;
         }
 
@@ -422,20 +540,22 @@ class Bucket {
     }
 
     /**
-     * @param p_reader
-     * @param p_address
-     * @param p_key
-     * @return
+     * Returns the matching value for parameter p_key or null if no key-value pair is stored.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @param p_key     key as byte array.
+     * @return the matching value for parameter p_key or null if no key-value pair is stored.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
     static byte[] get(final RawRead p_reader, final long p_address, final byte[] p_key) {
         short size = p_reader.readShort(p_address, SIZE_OFFSET);
         assert size > -1;
 
-        // run through data
         int right_offset = DATA_OFFSET;
         int current_entry = 1;
 
-        while (current_entry <= size) {
+        while (current_entry <= size) { // run through data
 
             // read key
             short length = p_reader.readShort(p_address, right_offset);
@@ -444,8 +564,7 @@ class Bucket {
             p_reader.read(p_address, right_offset, stored_key);
             right_offset += length;
 
-            // compare keys
-            if (Arrays.equals(stored_key, p_key)) {
+            if (Arrays.equals(stored_key, p_key)) { // compare keys
 
                 // read value
                 length = p_reader.readShort(p_address, right_offset);
@@ -456,10 +575,8 @@ class Bucket {
                 return stored_value;
             }
 
-            // skip value
-            right_offset += LENGTH_BYTES + p_reader.readShort(p_address, right_offset);
+            right_offset += LENGTH_BYTES + p_reader.readShort(p_address, right_offset); // skip value
 
-            // increment current entry
             current_entry++;
         }
 
@@ -467,24 +584,28 @@ class Bucket {
     }
 
     /**
-     * @param p_reader
-     * @param p_writer
-     * @param p_address
-     * @param p_key
-     * @param p_value
+     * Puts a key-value pair in the bucket. The method will append the pair and will not check the memory bounds.
+     * For correct usage call methods {@link #isEnoughSpace(RawRead, Size, long, long, int)} and optional
+     * {@link #sizeForFit(RawRead, Size, long, long, int)}.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_writer  DXMem writer for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @param p_key     key as byte array.
+     * @param p_value   value as byte array.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
     static void put(final RawRead p_reader, final RawWrite p_writer, final long p_address, final byte[] p_key, final byte[] p_value) {
         // read information
         short size = p_reader.readShort(p_address, SIZE_OFFSET);
         assert size >= 0;
 
-        // run through data
         int offset = DATA_OFFSET;
         int current_entry = 1;
-
         short length;
 
-        while (current_entry <= size) {
+        while (current_entry <= size) { // run through data
             // skip key
             length = p_reader.readShort(p_address, offset);
             offset += LENGTH_BYTES + length;
@@ -493,7 +614,6 @@ class Bucket {
             length = p_reader.readShort(p_address, offset);
             offset += LENGTH_BYTES + length;
 
-            // increment current entry
             current_entry++;
         }
 
@@ -506,30 +626,46 @@ class Bucket {
         offset += LENGTH_BYTES;
         p_writer.write(p_address, offset, p_value);
 
-
         // update used bytes
         int usedBytes = p_reader.readInt(p_address, USED_BYTES_OFFSET);
         usedBytes += calcStoredSize(p_key, p_value);
         p_writer.writeInt(p_address, USED_BYTES_OFFSET, usedBytes);
 
-        // update size
-        p_writer.writeShort(p_address, SIZE_OFFSET, (short) (size + 1));
+
+        p_writer.writeShort(p_address, SIZE_OFFSET, (short) (size + 1)); // update size
     }
 
     /**
+     * Splits the bucket and the new bucket is local, so the data could be written to the memory.
      * Important: the allocated new bucket has to be same size than this bucket
      *
-     * @param p_reader
-     * @param p_writer
-     * @param p_own_address
-     * @param p_address
-     * @param p_hashId
+     * @param p_reader      DXMem reader for direct memory access.
+     * @param p_writer      DXMem writer for direct memory access.
+     * @param p_own_address where the bucket is stored which will splitted.
+     * @param p_address     where the new bucket will stored to.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
     static void splitBucket(final RawRead p_reader, final RawWrite p_writer, final long p_own_address,
                             final long p_address, final byte p_hashId) {
         splitBucket(p_reader, p_writer, p_own_address, p_address, p_hashId, true);
     }
 
+    /**
+     * Splits the bucket and returns the raw data format from the new bucket. With parameter p_withInitializer will the function call {@link #initialize(RawWrite, long, de.hhu.bsinfo.dxram.datastructure.Bucket.RawData)}.
+     * It indicates that the new bucket is local.
+     * The incurred space will be closed.
+     *
+     * @param p_reader         DXMem reader for direct memory access.
+     * @param p_writer         DXMem writer for direct memory access.
+     * @param p_own_address    where the bucket is stored which will splitted.
+     * @param p_address        where the new bucket will stored to.
+     * @param p_hashId         the used hash algorithm by the HashMap.
+     * @param p_withInitialize indicates if the initialze method will be call to initialize the new chunk.
+     * @return the raw data format from the new bucket
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
+     */
     private static RawData splitBucket(final RawRead p_reader, final RawWrite p_writer,
                                        final long p_own_address, final long p_address, final byte p_hashId, final boolean p_withInitialize) {
         // read information
@@ -543,11 +679,7 @@ class Bucket {
         depth++;
         p_writer.writeShort(p_own_address, DEPTH_OFFSET, depth);
 
-        // run through data
-        int offset = DATA_OFFSET;
-        int current_entry = 1;
-
-        // Create RawData
+        // Create RawData for new bucket
         RawData rawData = new RawData();
         rawData.m_depth = depth;
 
@@ -557,9 +689,10 @@ class Bucket {
         ArrayList<Integer> space = new ArrayList<>(size);
         int tmp_offset;
         boolean space_mode = false;
+        int offset = DATA_OFFSET;
+        int current_entry = 1;
 
-        // run through data
-        while (current_entry <= size) {
+        while (current_entry <= size) { // run through data
             tmp_offset = offset;
 
             // read key
@@ -569,14 +702,11 @@ class Bucket {
             p_reader.read(p_own_address, offset, stored_key);
             offset += length;
 
-            // has key
-            hash = HashFunctions.hash(p_hashId, stored_key);
+            hash = HashFunctions.hash(p_hashId, stored_key); // hash key
 
-            // compare depth_bit
-            if (ExtendibleHashing.compareBitForDepth(hash, depth)) {
+            if (ExtendibleHashing.compareBitForDepth(hash, depth)) { // compare depth_bit
 
-                // add key
-                rawData.appendKey(length, stored_key);
+                rawData.appendKey(length, stored_key); // add key
 
                 // read value
                 length = p_reader.readShort(p_own_address, offset);
@@ -584,29 +714,23 @@ class Bucket {
                 byte[] stored_value = new byte[length];
                 p_reader.read(p_own_address, offset, stored_value);
                 offset += length;
+                rawData.appendValue(length, stored_value); // add value
 
-                // add value
-                rawData.appendValue(length, stored_value);
-
-                // activate space mode
-                if (!space_mode) {
+                if (!space_mode) { // activate space mode
                     space.add(tmp_offset);
                     space_mode = true;
                 }
 
             } else {
 
-                // skip value
-                offset += LENGTH_BYTES + p_reader.readShort(p_own_address, offset);
+                offset += LENGTH_BYTES + p_reader.readShort(p_own_address, offset); // skip value
 
-                // deactivate space mode
-                if (space_mode) {
+                if (space_mode) { // deactivate space mode
                     space.add(tmp_offset);
                     space_mode = false;
                 }
             }
 
-            // increment current entry
             current_entry++;
         }
 
@@ -632,40 +756,57 @@ class Bucket {
             }
         }
 
-        // update used bytes
-        p_writer.writeInt(p_own_address, USED_BYTES_OFFSET, usedBytes - rawData.m_dataBytes);
+        p_writer.writeInt(p_own_address, USED_BYTES_OFFSET, usedBytes - rawData.m_dataBytes); // update used bytes
 
-        // updated size
-        p_writer.writeShort(p_own_address, SIZE_OFFSET, (short) (size - rawData.m_size));
+        p_writer.writeShort(p_own_address, SIZE_OFFSET, (short) (size - rawData.m_size)); // updated size
 
-        // initialize new bucket
-        if (p_withInitialize)
+        if (p_withInitialize) // initialize new bucket
             initialize(p_writer, p_address, rawData);
 
         return rawData;
     }
 
+    /**
+     * Splits the bucket and the new bucket is gloabl, so the data could not be written to the memory.
+     * Important: the allocated new bucket has to be same size than this bucket
+     *
+     * @param p_reader      DXMem reader for direct memory access.
+     * @param p_writer      DXMem writer for direct memory access.
+     * @param p_own_address where the bucket is stored which will splitted.
+     * @param p_address     where the new bucket will stored to.
+     * @param p_hashId      the used hash algorithm by the HashMap.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
+     */
     static RawData splitBucket(final RawRead p_reader, final RawWrite p_writer,
                                final long p_own_address, final byte p_hashId) {
         return splitBucket(p_reader, p_writer, p_own_address, -1L, p_hashId, false);
     }
 
     /**
-     * @param p_suspect
-     * @param p_suspect2
-     * @return
+     * Returns the calculated stored size of a key-value pair when it will be inserted into the bucket.
+     *
+     * @param p_suspect  a byte array (key).
+     * @param p_suspect2 a byte array (value).
+     * @return the calculated stored size of a key-value pair.
      */
     static int calcStoredSize(final byte[] p_suspect, final byte[] p_suspect2) {
         return p_suspect.length + p_suspect2.length + (LENGTH_BYTES * 2);
     }
 
+    // TODO: copy include or exclude from?
+
     /**
-     * @param p_reader
-     * @param p_writer
-     * @param p_address
-     * @param p_from
-     * @param p_size
-     * @param p_to
+     * Copies a range of bytes.
+     *
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_writer  DXMem writer for direct memory access.
+     * @param p_address where the bucket is stored.
+     * @param p_from    offset from where the copy will start (include)
+     * @param p_size    range which should be copied.
+     * @param p_to      offset to be copied to.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
     static void copy(final RawRead p_reader, final RawWrite p_writer, final long p_address, final int p_from,
                      final int p_size, final int p_to) {
@@ -674,16 +815,33 @@ class Bucket {
         log.debug(String.format("Copy Memory from %d to %d with size = %d", p_from, p_to, p_size));
 
         byte[] tmp = new byte[p_size];
+
         p_reader.read(p_address, p_from, tmp);
         p_writer.write(p_address, p_to, tmp);
     }
 
     /**
-     * @param p_size
-     * @param p_reader
-     * @param p_cid
-     * @param p_address
-     * @return
+     * Returns the calculated individual bucket size for given length of key and value.
+     *
+     * @param p_entries    maximum entries which the bcuket should store.
+     * @param p_keyBytes   size of a key.
+     * @param p_valueBytes size of a value.
+     * @return the calculated individual bucket size for given length of key and value.
+     */
+    static int calcIndividualBucketSize(final int p_entries, final short p_keyBytes, final short p_valueBytes) {
+        return (LENGTH_BYTES * 2 + p_keyBytes + p_valueBytes) * p_entries;
+    }
+
+    /**
+     * Returns a representation of this bucket as string.
+     *
+     * @param p_size    DXMem size-operation.
+     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_cid     of the bucket.
+     * @param p_address where the bucket is stored.
+     * @return a representation of this bucket as string.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.Size
      */
     static String toString(final Size p_size, final RawRead p_reader, final long p_cid, final long p_address) {
         StringBuilder builder = new StringBuilder();
@@ -731,15 +889,5 @@ class Bucket {
         builder.append("\n*********************************************************************************************\n");
 
         return builder.toString();
-    }
-
-    /**
-     * @param p_entries
-     * @param p_keyBytes
-     * @param p_valueBytes
-     * @return
-     */
-    static int calcIndividualBucketSize(final int p_entries, final short p_keyBytes, final short p_valueBytes) {
-        return (LENGTH_BYTES * 2 + p_keyBytes + p_valueBytes) * p_entries;
     }
 }
