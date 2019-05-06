@@ -1,12 +1,10 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
-import de.hhu.bsinfo.dxmem.data.ChunkID;
 import de.hhu.bsinfo.dxmem.data.ChunkState;
 import de.hhu.bsinfo.dxmem.operations.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import java.text.NumberFormat;
 import java.util.HashSet;
 
 /**
@@ -105,25 +103,34 @@ class Hashtable {
      * @see de.hhu.bsinfo.dxmem.operations.Resize
      */
     static long resize(final RawRead p_reader, final RawWrite p_writer, final Resize p_resize, final Pinning p_pinning, final long p_cid, long p_address) {
-        short depth = (short) (p_reader.readShort(p_address, DEPTH_OFFSET) + 1); // increment depth
+        // increment depth
+        short depth = (short) (p_reader.readShort(p_address, DEPTH_OFFSET) + 1);
         p_writer.writeShort(p_address, DEPTH_OFFSET, depth);
 
         log.warn("Now Depth is " + depth + " Hash table will be resized from " + ((long) Math.pow(2, depth - 1) * Long.BYTES + DATA_OFFSET) + " to " + ((long) Math.pow(2, depth) * Long.BYTES + DATA_OFFSET));
-
+        // resize chunk
         int newSize = (int) Math.pow(2, depth) * Long.BYTES + DATA_OFFSET;
         p_pinning.unpin(p_cid);
-        if (p_resize.resize(p_cid, newSize) != ChunkState.OK) // resize chunk // TODO Resize funktioniert aber nicht die Nutzung ISSSUE
+        if (p_resize.resize(p_cid, newSize) != ChunkState.OK)
             throw new RuntimeException("ChunkState for resize call on hashtable is not OK");
 
         p_address = p_pinning.pin(p_cid).getAddress();
 
-        int current_size = newSize - DATA_OFFSET; // new size of the Hashtable
-        int old_size = current_size / 2; // old size of the Hashtable
 
-        int left_offset = DATA_OFFSET + old_size - Long.BYTES; // offset at last entry of the old size
-        int right_offset = DATA_OFFSET + current_size - Long.BYTES;  // offset at last entry of the new size
+        // get table sizes
+        int current_size = newSize - DATA_OFFSET;
+        int old_size = current_size / 2;
+        //log.warn("curent: " + current_size + " old: " + old_size);
 
-        while (left_offset >= DATA_OFFSET) { // run through the "old" Hastable
+
+        // set offset's
+        int left_offset = DATA_OFFSET + old_size - Long.BYTES;
+        int right_offset = DATA_OFFSET + current_size - Long.BYTES;
+        //og.warn("leftOffset: " + left_offset + " right Offset: " + right_offset);
+
+
+        // run through old size from max offset to 0
+        while (left_offset >= DATA_OFFSET) {
             long val = p_reader.readLong(p_address, left_offset);
 
             p_writer.writeLong(p_address, right_offset, val);
@@ -222,7 +229,7 @@ class Hashtable {
             offset += Long.BYTES;
         }
 
-        return p_size;
+        return p_memorySize;
     }
 
     /**

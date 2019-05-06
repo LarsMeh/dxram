@@ -3,7 +3,6 @@ package de.hhu.bsinfo.dxram.datastructure.util;
 import com.google.common.hash.HashFunction;
 import com.google.common.hash.Hashing;
 
-import java.security.InvalidParameterException;
 import java.util.HashMap;
 
 /**
@@ -29,6 +28,7 @@ public class HashFunctions {
     /**
      * Hashes a array of bytes with a hash function. The hash function could be selected by the parameter id.
      * If the id is not valid the method will return null. @see {@link java.util.HashMap#get(Object)}
+     *
      * @param p_id    indicates the hash function which should be used.
      * @param p_value will be hashed.
      * @return hash value from p_value.

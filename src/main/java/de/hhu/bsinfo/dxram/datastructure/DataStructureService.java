@@ -72,6 +72,10 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
                 p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId);
     }
 
+    public void removeHashMap(HashMap p_hashMap) {
+        p_hashMap.removeThisObject();
+    }
+
     /**
      * Register the ChunkID to a identifier.
      *
@@ -80,6 +84,16 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      */
     void registerDataStructure(final long p_cid, final String p_identifier) {
         m_nameComponent.register(p_cid, p_identifier);
+    }
+
+    /**
+     * Unregister the ChunkID to a identifier.
+     *
+     * @param p_cid        ChunkID where the meta data or the data structure is stored to.
+     * @param p_identifier for the data structure.
+     */
+    void unregisterDataStructure(final long p_cid, final String p_identifier) {
+        // TODO: nameserivce component has no unregister method.
     }
 
     /**

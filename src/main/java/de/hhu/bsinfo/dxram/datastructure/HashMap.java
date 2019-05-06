@@ -32,6 +32,7 @@ public class HashMap<K, V> {
     static final int BUCKET_ENTRIES;
     private static final short BUCKET_INITIAL_DEPTH;
     private static final short SKEMA_DEFAULT_ID;
+    private static final short MAX_DEPTH;
 
     static {
         HASH_TABLE_DEPTH_LIMIT = 31;
@@ -39,6 +40,7 @@ public class HashMap<K, V> {
         BUCKET_ENTRIES = (int) Math.pow(2, BUCKET_ENTRIES_EXP);
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;
+        MAX_DEPTH = 27;
         Skema.enableAutoRegistration();
     }
 
@@ -80,48 +82,46 @@ public class HashMap<K, V> {
         m_serializeKey = true;
         m_serializeValue = true;
 
-        // calculate hashtable_depth
-        short hashtable_depth = calcTableDepth(p_initialCapacity);
+        short hashtable_depth = calcTableDepth(p_initialCapacity); // calculate hashtable_depth
 
-        // Init NodePool
-        m_nodepool_cid = initNodePool(p_onlinePeers, p_numberOfNodes);
+        m_nodepool_cid = initNodePool(p_onlinePeers, p_numberOfNodes); // Init NodePool
 
-        // Init Bucket
-        long bucket_cid = initBucket(BUCKET_INITIAL_DEPTH, Bucket.calcIndividualBucketSize(HashMap.BUCKET_ENTRIES, p_keyBytes, p_valueBytes));
+        long bucket_cid = initBucket(BUCKET_INITIAL_DEPTH, Bucket.calcIndividualBucketSize(HashMap.BUCKET_ENTRIES, p_keyBytes, p_valueBytes)); // Init Bucket
 
-        // Inti Hashtable
-        m_hashtable_cid = initHashtable(hashtable_depth, bucket_cid);
+        m_hashtable_cid = initHashtable(hashtable_depth, bucket_cid); // Init Hashtable
         m_hashtable_address = m_memory.pinning().pin(m_hashtable_cid).getAddress();
 
-        // Init Metadata
-        m_metaData_cid = initMetaData(m_nodepool_cid, m_hashtable_cid, Bucket.calcIndividualBucketSize(BUCKET_ENTRIES, p_keyBytes, p_valueBytes), p_hashFunctionId);
+        m_metaData_cid = initMetaData(m_nodepool_cid, m_hashtable_cid, Bucket.calcIndividualBucketSize(BUCKET_ENTRIES, p_keyBytes, p_valueBytes), p_hashFunctionId); // Init Metadata
         m_metaData_address = m_memory.pinning().pin(m_metaData_cid).getAddress();
 
-        // Register Metadata
-        m_service.registerDataStructure(m_metaData_cid, p_name);
+        m_service.registerDataStructure(m_metaData_cid, p_name); // Register Metadata
     }
 
-    // TODO:
-    boolean removeThisObject() {
-        // TODO: Clear all buckets
+    void removeThisObject() {
+        m_lock.writeLock().lock(); // lock reentrant write lock7
 
-        // TODO: Clear nodepool
+        this.clear(false);
 
-        // TODO: Clear table and unpin them
+        m_memory.remove().remove(m_nodepool_cid);
+
         m_memory.pinning().unpinCID(m_hashtable_address);
+        m_memory.remove().remove(m_hashtable_cid);
 
-        // TODO: Clear mapData and unpin
         m_memory.pinning().unpinCID(m_metaData_address);
-        return true;
-    }
 
+        m_memory.remove().remove(m_metaData_cid);
+
+        m_lock.writeLock().unlock(); // unlock reentrant write lock
+    }
 
     private long initNodePool(@NotNull final List<Short> p_onlinePeers, final int p_numberOfNodes) {
         long cid = m_memory.create().create(NodePool.getInitialMemorySize(p_onlinePeers.size(), p_numberOfNodes));
         long address = lockAndPin(cid);
+
         NodePool.initialize(m_writer, p_onlinePeers, address, p_numberOfNodes);
-        //log.info(NodePool.toString(m_memory.size(), m_reader, cid, address));
+
         unlockAndUnpin(cid);
+
         return cid;
     }
 
@@ -129,9 +129,11 @@ public class HashMap<K, V> {
         int size = Bucket.getInitialMemorySize() + p_individualBucketSize;
         long cid = m_memory.create().create(size);
         long address = lockAndPin(cid);
+
         Bucket.initialize(m_writer, address, p_depth);
-        //log.info(Bucket.toString(m_memory.size(), m_reader, cid, address));
+
         unlockAndUnpin(cid);
+
         return cid;
     }
 
@@ -139,9 +141,11 @@ public class HashMap<K, V> {
         int initialSize = Hashtable.getInitialMemorySize(p_depth);
         long cid = m_memory.create().create(initialSize);
         long address = lockAndPin(cid);
+
         Hashtable.initialize(m_writer, address, initialSize, p_depth, p_defaultEntry);
-        //log.info(Hashtable.toString(m_memory.size(), m_reader, cid, address));
+
         unlockAndUnpin(cid);
+
         return cid;
     }
 
@@ -149,9 +153,11 @@ public class HashMap<K, V> {
                               final byte p_hashFunctionId) {
         long cid = m_memory.create().create(Metadata.getInitialMemorySize());
         long address = lockAndPin(cid);
+
         Metadata.initialize(m_writer, address, p_hashtable_cid, p_nodePool_cid, 0L, SKEMA_DEFAULT_ID, p_individual_bucketSize, p_hashFunctionId);
-        //log.info(Metadata.toString(m_memory.size(), m_reader, cid, address));
+
         unlockAndUnpin(cid);
+
         return cid;
     }
 
@@ -202,9 +208,9 @@ public class HashMap<K, V> {
 
     public boolean put(final K p_key, final V p_value) {
         assert p_key != null && p_value != null;
+        byte[] key, value;
 
-        // Skema registration
-        if (m_skemaRegistrationSwitch) {
+        if (m_skemaRegistrationSwitch) { // Skema registration
             if (p_key.getClass() == byte[].class)
                 m_serializeKey = false;
             if (p_value.getClass() == byte[].class)
@@ -215,9 +221,7 @@ public class HashMap<K, V> {
             m_skemaRegistrationSwitch = false;
         }
 
-        // Serialize
-        byte[] key, value;
-        if (m_serializeKey)
+        if (m_serializeKey) // Serialize
             key = Skema.serialize(p_key);
         else
             key = (byte[]) p_key;
@@ -227,22 +231,15 @@ public class HashMap<K, V> {
         else
             value = (byte[]) p_value;
 
-        // Hash key
-        final byte[] hash = HashFunctions.hash(Metadata.getHashFunctionId(m_reader, m_metaData_address), key);
+        final byte[] hash = HashFunctions.hash(m_hashFunctionId, key);
 
-        // reentrant write lock
-        m_lock.writeLock().lock();
+        m_lock.writeLock().lock(); // reentrant write lock
 
-        // write lock on hashtable
-        //m_memory.lock().lock(m_hashtable_cid, true, -1);
-
-        // Lookup in Hashtable
         final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address));
-        final long cid = Hashtable.lookup(m_reader, m_hashtable_address, index);
+        final long cid = Hashtable.lookup(m_reader, m_hashtable_address, index); // Lookup in Hashtable
 
 
         return putLoop(cid, index, hash, key, value);
-
     }
 
     private static class Result {
@@ -278,20 +275,17 @@ public class HashMap<K, V> {
                     return DataStructureMessageTypes.SUBSUBTYPE_ERROR;
             }
         }
-
     }
 
     private boolean putLoop(long p_cid, int p_index, final byte[] p_hash, final byte[] p_key, final byte[] p_value) {
         HashMap.Result result;
         do {
+
             if (m_service.isLocal(p_cid)) {
 
                 long address = m_memory.pinning().pin(p_cid).getAddress();
 
-                // put local and save result
                 result = putLocal(address, p_cid, p_hash, p_key, p_value);
-
-                //log.info(Bucket.toString(m_memory.size(), m_reader, p_cid, m_memory.pinning().translate(p_cid)));
 
                 m_memory.pinning().unpinCID(p_cid);
 
@@ -300,42 +294,60 @@ public class HashMap<K, V> {
                 PutRequest request = new PutRequest(ChunkID.getCreatorID(p_cid), p_key, p_value, Hashtable.getDepth(m_reader, m_hashtable_address), p_cid, m_hashFunctionId);
                 PutResponse response = (PutResponse) m_service.sendSync(request, -1);
                 result = consumePutResponse(response);
+
                 if (result.m_error)
-                    log.error("Global");
+                    log.error("Put Request throws an error");
 
             }
 
             // handle optional resize
             if (result.m_resized) {
-                if (m_memory.stats().getHeapStatus().getTotalSizeBytes() < ((long) Math.pow(2, Hashtable.getDepth(m_reader, m_hashtable_address) + 1) * Long.BYTES + 2))
-                    new MemoryRuntimeException("Total Bytes: " + m_memory.stats().getHeapStatus().getTotalSizeBytes() + " But want to allocate more");
-                m_hashtable_address = Hashtable.resize(m_reader, m_writer, m_memory.resize(), m_memory.pinning(), m_hashtable_cid, m_hashtable_address);
-                p_index = ExtendibleHashing.extendibleHashing(p_hash, Hashtable.getDepth(m_reader, m_hashtable_address));
-                p_cid = Hashtable.lookup(m_reader, m_hashtable_address, p_index);
+
+                short depth = Hashtable.getDepth(m_reader, m_hashtable_address);
+
+                if (depth == MAX_DEPTH) {
+
+                    m_lock.writeLock().unlock();
+
+                    log.error("Hashtable reached maximum depth of " + MAX_DEPTH);
+
+                    return false;
+
+                } else if (m_memory.stats().getHeapStatus().getTotalSizeBytes() < ((long) Math.pow(2, depth + 1) * Long.BYTES + 2))
+                    throw new MemoryRuntimeException("Total Bytes: " + m_memory.stats().getHeapStatus().getTotalSizeBytes() + " But want to allocate more");
+                else {
+
+                    m_hashtable_address = Hashtable.resize(m_reader, m_writer, m_memory.resize(), m_memory.pinning(), m_hashtable_cid, m_hashtable_address);
+                    p_index = ExtendibleHashing.extendibleHashing(p_hash, Hashtable.getDepth(m_reader, m_hashtable_address));
+                    p_cid = Hashtable.lookup(m_reader, m_hashtable_address, p_index);
+
+                }
             }
 
-            // handle optional bucket split
-            if (result.m_new_bucket != ChunkID.INVALID_ID) {
+            if (result.m_new_bucket != ChunkID.INVALID_ID) {  // handle optional bucket split
+
                 Hashtable.splitForEntry(m_reader, m_writer, m_memory.size(), m_hashtable_cid, m_hashtable_address, p_cid, p_index, result.m_new_bucket);
                 p_cid = Hashtable.lookup(m_reader, m_hashtable_address, p_index);
+
             }
 
-            // handle error
-            if (result.m_error) {
+            if (result.m_error) { // handle error
+
                 m_lock.writeLock().unlock();
+
                 log.error("Could not put key into HashMap\nKey = " + Arrays.toString(p_key));
+
                 return false;
+
             }
 
-            if (result.m_success && !result.m_overwrite) {
-                // Metadata increment size
+            if (result.m_success && !result.m_overwrite) // Metadata increment size
                 Metadata.incrementSize(m_writer, m_reader, m_metaData_address);
-            }
+
 
         } while (!result.m_success);
 
-        // unlock reentrant write lock
-        m_lock.writeLock().unlock();
+        m_lock.writeLock().unlock(); // unlock reentrant write lock
 
         return true;
     }
@@ -378,34 +390,30 @@ public class HashMap<K, V> {
     }
 
     private HashMap.Result putLocal(final long p_address, final long p_bucketCID, final byte[] p_hash, final byte[] p_key, final byte[] p_value) {
-        if (!Bucket.isFull(m_reader, p_address)) {
+        if (!Bucket.isFull(m_reader, p_address)) { // Bucket has space
 
-            // save put with optional resize
             HashMap.Result result = savePut(m_memory, p_address, p_bucketCID, p_key, p_value);
 
             if (!result.m_success)
-                log.warn("savePut failed for key: " + Arrays.toString(p_key));
+                log.warn("SavePut failed for key: " + Arrays.toString(p_key));
 
             return result;
 
-        } else {
+        } else { // Bucket has maximum entries
 
-            // Bucket has maximum entries
             short bucket_depth = Bucket.getDepth(m_reader, p_address);
 
             int table_depth = Hashtable.getDepth(m_reader, m_hashtable_address);
 
-            // compare depth to decide
-            if (bucket_depth < table_depth) {
+            if (bucket_depth < table_depth) { // true - split bucket
 
-                // split bucket
                 return splitBucketAndPut(p_address, p_bucketCID, p_hash, m_hashFunctionId, p_key, p_value);
 
-            } else if (bucket_depth == table_depth) {
+            } else if (bucket_depth == table_depth) { // false - resize Bucket
 
-                // resize call
                 HashMap.Result result = new HashMap.Result();
                 result.m_resized = true;
+
                 return result;
 
             } else
@@ -415,42 +423,43 @@ public class HashMap<K, V> {
     }
 
     private HashMap.Result splitBucketAndPut(final long p_address, final long p_bucketCID, final byte[] p_hash, final byte p_hashFunctionId, final byte[] p_key, final byte[] p_value) {
-        // allocate bucket
         long cid = allocateCID(m_memory.size().size(p_bucketCID));
 
         HashMap.Result result = new HashMap.Result();
 
-        // split bucket
-        if (m_service.isLocal(cid)) {
+        if (m_service.isLocal(cid)) { // new bucket is local
 
-            // allocated chunk is on this peer
             long address2 = pin(cid);
             result = splitBucketAndPutLocalMemory(m_memory, p_address, address2, p_bucketCID, cid, p_hash, p_hashFunctionId, p_key, p_value);
             m_memory.pinning().unpinCID(cid);
 
-        } else {
+        } else { // new bucket is global
 
-            // allocated chunk is not on this peer
             Bucket.RawData rawData = Bucket.splitBucket(m_reader, m_writer, p_address, p_hashFunctionId);
 
             if (rawData == null)
                 throw new RuntimeException();
 
             if (!ExtendibleHashing.compareBitForDepth(p_hash, Bucket.getDepth(m_reader, p_address))) {
+
                 if (!Bucket.isFull(m_reader, p_address))
                     result = savePut(m_memory, p_address, p_bucketCID, p_key, p_value);
+
             } else {
+
                 if (rawData.isEmpty()) {
+
                     rawData.appendKey((short) p_key.length, p_key);
                     rawData.appendValue((short) p_value.length, p_value);
                     result.m_success = true;
+
                 }
             }
 
-            // sendMessage with rawData
             if (rawData.getByteArray() == null) {
-                log.error("rawData Bytes from Bucketsplit are null");
+
                 throw new NullPointerException();
+
             }
 
             WriteBucketRawDataRequest request = new WriteBucketRawDataRequest(ChunkID.getCreatorID(cid), cid, rawData.getByteArray());
@@ -469,13 +478,16 @@ public class HashMap<K, V> {
     private long allocateCID(final int p_bucketSize) {
         long address = lockAndPin(m_nodepool_cid);
         short nodeId = NodePool.getRandomNode(m_reader, address);
+
         unlockAndUnpin(m_nodepool_cid);
 
         if (m_service.isLocal(nodeId))
             return m_memory.create().create(p_bucketSize);
         else {
+
             AllocateChunkRequest request = new AllocateChunkRequest(nodeId, p_bucketSize);
             AllocateChunkResponse response = (AllocateChunkResponse) m_service.sendSync(request, -1);
+
             return response.getBucketCID();
         }
     }
@@ -485,37 +497,33 @@ public class HashMap<K, V> {
                                           final byte[] p_key, final byte[] p_value) {
         HashMap.Result result = new HashMap.Result();
 
-        // check if space from bucket is enough
-        if (!Bucket.isEnoughSpace(p_memory.rawRead(), p_memory.size(), p_bucketCID, p_address, Bucket.calcStoredSize(p_key, p_value))) {
+        if (!Bucket.isEnoughSpace(p_memory.rawRead(), p_memory.size(), p_bucketCID, p_address, Bucket.calcStoredSize(p_key, p_value))) { // resize Bucket and don't forget unpin, pin and update address
 
-            // resize Bucket and don't forget unpin, pin and update address
             int new_size = Bucket.sizeForFit(p_memory.rawRead(), p_memory.size(), p_bucketCID, p_address, Bucket.calcStoredSize(p_key, p_value));
 
             p_memory.resize().resize(p_bucketCID, new_size);
 
-            p_address = p_memory.pinning().translate(p_bucketCID);
-            // todo: handle if it's not working --> migrate bucket and try again and return false
+            p_address = p_memory.pinning().translate(p_bucketCID); // TODO: it could be good to migrate the chunk
         }
 
-        if (Bucket.contains(p_memory.rawRead(), p_address, p_key)) {
+        if (Bucket.contains(p_memory.rawRead(), p_address, p_key)) { // overwrite value by remove this entry and recall ths function
 
-            // overwrite value by remove this entry and recall ths function
             result.m_overwrite = true;
             Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), p_address, p_key);
-            result.m_success = savePut(p_memory, p_address, p_bucketCID, p_key, p_value).m_success; // should never be false
-            if (!result.m_success)
+
+            if (!savePut(p_memory, p_address, p_bucketCID, p_key, p_value).m_success) // should never be false (m_success)
                 throw new RuntimeException();
 
         }
 
-        // put into bucket
         Bucket.put(p_memory.rawRead(), p_memory.rawWrite(), p_address, p_key, p_value);
+
         result.m_success = true;
 
 
-        log.debug("Save Put -->\nBucket after put the key = " + Arrays.toString(p_key) + "\nand value = "
-                + Arrays.toString(p_value) + "\n" +
-                Bucket.toString(p_memory.size(), p_memory.rawRead(), p_bucketCID, p_address) + "\n");
+//        log.debug("Save Put -->\nBucket after put the key = " + Arrays.toString(p_key) + "\nand value = "
+//                + Arrays.toString(p_value) + "\n" +
+//                Bucket.toString(p_memory.size(), p_memory.rawRead(), p_bucketCID, p_address) + "\n");
 
         return result;
     }
@@ -524,25 +532,23 @@ public class HashMap<K, V> {
                                                                final long p_bucketCID, final long p_newBucketCID,
                                                                final byte[] p_hash, final byte p_hashFunctionId,
                                                                final byte[] p_key, final byte[] p_value) {
-        log.debug("Bucket Split for Bucket = " + ChunkID.toHexString(p_bucketCID) +
-                "\nnew Bucket = " + ChunkID.toHexString(p_newBucketCID) + "\n");
+//        log.debug("Bucket Split for Bucket = " + ChunkID.toHexString(p_bucketCID) +
+//                "\nnew Bucket = " + ChunkID.toHexString(p_newBucketCID) + "\n");
 
-        // split bucket
         Bucket.splitBucket(p_memory.rawRead(), p_memory.rawWrite(), p_address, p_address2, p_hashFunctionId);
 
-        // try put, true --> new bucket else old bucket
-        if (ExtendibleHashing.compareBitForDepth(p_hash, Bucket.getDepth(p_memory.rawRead(), p_address))) {
-            //log.debug(Bucket.toString(p_memory.size(), p_memory.rawRead(), p_newBucketCID, p_address2));
+        if (ExtendibleHashing.compareBitForDepth(p_hash, Bucket.getDepth(p_memory.rawRead(), p_address))) { // try put, true --> new bucket else old bucket
+
             if (!Bucket.isFull(p_memory.rawRead(), p_address2))
                 return savePut(p_memory, p_address2, p_newBucketCID, p_key, p_value);
 
         } else {
-            //log.debug(Bucket.toString(p_memory.size(), p_memory.rawRead(), p_bucketCID, p_address));
+
             if (!Bucket.isFull(p_memory.rawRead(), p_address))
                 return savePut(p_memory, p_address, p_bucketCID, p_key, p_value);
         }
 
-        log.debug("Bucket Split was ok but creates no space for put\n");
+//        log.debug("Bucket Split was ok but creates no space for put\n");
 
         return new HashMap.Result(); // As caller add the bucket cid to result
     }
@@ -552,22 +558,21 @@ public class HashMap<K, V> {
     @Contract("_, _ -> new")
     static PutResponse handlePutRequest(@NotNull final PutRequest p_request, final DXMem p_memory) {
 
-        // check for resize call as fast as possible
         long address = pin(p_memory, p_request.getCid());
         boolean isFull = Bucket.isFull(p_memory.rawRead(), address);
         short bucket_depth = Bucket.getDepth(p_memory.rawRead(), address);
 
-        if (isFull && bucket_depth == p_request.getTableDepth()) {
+        if (isFull && bucket_depth == p_request.getTableDepth()) { // check for resize call as fast as possible
+
             p_memory.pinning().unpinCID(p_request.getCid());
+
             return new PutResponse(p_request, DataStructureMessageTypes.SUBSUBTYPE_RESIZE, ChunkID.INVALID_ID);
         }
 
-        // global put
         HashMap.Result result = putGlobal(p_memory, address, isFull, bucket_depth, p_request.getTableDepth(),
                 p_request.getCid(), p_request.getHashedKey(), p_request.getKey(), p_request.getValue(),
                 p_request.getHashFunctionId());
 
-        // unpin cid
         p_memory.pinning().unpinCID(p_request.getCid());
 
         return new PutResponse(p_request, result.getSubSubType(), result.m_new_bucket);
@@ -577,24 +582,20 @@ public class HashMap<K, V> {
                                             final short p_depth, final short p_tableDepth, final long p_cid,
                                             final byte[] p_hash, final byte[] p_key, final byte[] p_value,
                                             final byte p_hashFunctionId) {
-
         HashMap.Result result;
         if (!p_isFull) {
 
-            // save put with optional resize
             result = savePut(p_memory, p_address, p_cid, p_key, p_value);
 
-        } else if (p_depth < p_tableDepth) {
+        } else if (p_depth < p_tableDepth) { // bucket split
 
-            // allocate
             long cid2 = p_memory.create().create(p_memory.size().size(p_cid));
             long address2 = pin(p_memory, cid2);
 
-            // bucket split
+
             result = splitBucketAndPutLocalMemory(p_memory, p_address, address2, p_cid, cid2, p_hash, p_hashFunctionId, p_key, p_value);
             result.m_new_bucket = cid2;
 
-            // unpin and unlock new cid
             p_memory.pinning().unpinCID(cid2);
 
         } else
@@ -606,38 +607,31 @@ public class HashMap<K, V> {
     @NotNull
     @Contract("_, _ -> new")
     static SignalResponse handleWriteBucketRequest(@NotNull final WriteBucketRawDataRequest p_request, @NotNull final DXMem p_memory) {
-
         Bucket.initialize(p_memory.rawWrite(), pin(p_memory, p_request.getCid()), p_request.getRawData());
+
         p_memory.pinning().unpinCID(p_request.getCid());
 
-        // Never a bad signal, maybe add this in future
         return new SignalResponse(p_request, DataStructureMessageTypes.SUBSUBTYPE_SUCCESS);
 
     }
 
-
     public V get(final K p_key) {
         assert p_key != null;
         V value;
+        byte[] key, valueBytes;
 
-        // Serialize
-        byte[] key;
-        if (m_serializeKey)
+        if (m_serializeKey) // Serialize
             key = Skema.serialize(p_key);
         else
             key = (byte[]) p_key;
 
-        // Hash key
-        final byte[] hash = HashFunctions.hash(Metadata.getHashFunctionId(m_reader, m_metaData_address), key);
+        final byte[] hash = HashFunctions.hash(m_hashFunctionId, key); // Hash key
 
-        // lock reentrant write lock
-        m_lock.readLock().lock();
+        m_lock.readLock().lock(); // lock reentrant write lock
 
-        // Lookup in Hashtable
-        final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address));
+
+        final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address)); // Lookup in Hashtable
         final long cid = Hashtable.lookup(m_reader, m_hashtable_address, index);
-
-        byte[] valueBytes;
 
         if (m_service.isLocal(cid)) {
 
@@ -650,24 +644,28 @@ public class HashMap<K, V> {
             GetResponse response = (GetResponse) m_service.sendSync(request, -1);
 
             if (response.getValue() == null) {
+
                 m_lock.readLock().unlock();
+
                 return null;
             }
 
             valueBytes = response.getValue();
         }
 
-        // lock reentrant write lock
-        m_lock.readLock().unlock();
+        m_lock.readLock().unlock(); // lock reentrant write lock
 
         if (valueBytes == null)
             throw new NullPointerException();
 
-        if (m_serializeValue) {
+        if (m_serializeValue) { // deserialize
+
             value = Skema.newInstance(Metadata.getSkemaValueId(m_reader, m_metaData_address));
             Skema.deserialize(value, valueBytes);
+
         } else
             value = (V) valueBytes;
+
         return value;
     }
 
@@ -693,27 +691,22 @@ public class HashMap<K, V> {
     public V remove(final K p_key) {
         assert p_key != null;
         V value;
+        byte[] key, valueBytes;
 
-        // Serialize
-        byte[] key;
-        if (m_serializeKey)
+        if (m_serializeKey) // Serialize
             key = Skema.serialize(p_key);
         else
             key = (byte[]) p_key;
 
-        // Hash key
-        final byte[] hash = HashFunctions.hash(Metadata.getHashFunctionId(m_reader, m_metaData_address), key);
+        final byte[] hash = HashFunctions.hash(m_hashFunctionId, key); // Hash key
 
-        // lock reentrant write lock
-        m_lock.writeLock().lock();
+        m_lock.writeLock().lock(); // lock reentrant write lock
 
-        // Lookup in Hashtable
         final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address));
         final long cid = Hashtable.lookup(m_reader, m_hashtable_address, index);
 
         log.debug("Remove is : " + (m_service.isLocal(cid) ? "local" : "global") + "\n");
 
-        byte[] valueBytes;
         if (m_service.isLocal(cid)) {
 
             long address = m_memory.pinning().pin(cid).getAddress();
@@ -733,19 +726,21 @@ public class HashMap<K, V> {
         }
 
         if (valueBytes == null) {
+
             m_lock.writeLock().unlock();
+
             return null;
         }
 
-        // Metadata decrement size
-        Metadata.decrementSize(m_writer, m_reader, m_metaData_address);
+        Metadata.decrementSize(m_writer, m_reader, m_metaData_address); // Metadata decrement size
 
-        // unlock reentrant write lock
-        m_lock.writeLock().unlock();
+        m_lock.writeLock().unlock(); // unlock reentrant write lock
 
-        if (m_serializeValue) {
+        if (m_serializeValue) { // deserialize
+
             value = Skema.newInstance(Metadata.getSkemaValueId(m_reader, m_metaData_address));
             Skema.deserialize(value, valueBytes);
+
         } else
             value = (V) valueBytes;
 
@@ -754,10 +749,10 @@ public class HashMap<K, V> {
 
     public boolean remove(final K p_key, final V p_value) {
         assert p_key != null && p_value != null;
-
-        // Serialize
         byte[] key, value;
-        if (m_serializeKey)
+        boolean result;
+
+        if (m_serializeKey) // Serialize
             key = Skema.serialize(p_key);
         else
             key = (byte[]) p_key;
@@ -767,17 +762,14 @@ public class HashMap<K, V> {
         else
             value = (byte[]) p_value;
 
-        // Hash key
-        final byte[] hash = HashFunctions.hash(Metadata.getHashFunctionId(m_reader, m_metaData_address), key);
+        final byte[] hash = HashFunctions.hash(m_hashFunctionId, key); // Hash key
 
-        // lock reentrant write lock
-        m_lock.writeLock().lock();
+        m_lock.writeLock().lock(); // lock reentrant write lock
 
-        // Lookup in Hashtable
-        final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address));
+        final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtable_address)); // Lookup in Hashtable
         final long cid = Hashtable.lookup(m_reader, m_hashtable_address, index);
 
-        boolean result;
+
         if (m_service.isLocal(cid)) {
 
             long address = m_memory.pinning().pin(cid).getAddress();
@@ -795,13 +787,10 @@ public class HashMap<K, V> {
             result = response.wasSuccessful();
         }
 
-        if (result) {
-            // Metadata decrement size
+        if (result)  // Metadata decrement size
             Metadata.decrementSize(m_writer, m_reader, m_metaData_address);
-        }
 
-        // unlock reentrant write lock
-        m_lock.writeLock().unlock();
+        m_lock.writeLock().unlock(); // unlock reentrant write lock
 
         return result;
     }
@@ -827,10 +816,11 @@ public class HashMap<K, V> {
         assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_REMOVE_WITH_KEY_REQ;
 
         boolean result = Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), pin(p_memory, p_request.getCid()), p_request.getKey(), p_request.getValue());
+
         SignalResponse response = new SignalResponse(p_request,
                 (result ? DataStructureMessageTypes.SUBSUBTYPE_SUCCESS : DataStructureMessageTypes.SUBSUBTYPE_ERROR));
-        p_memory.pinning().unpinCID(p_request.getCid());
 
+        p_memory.pinning().unpinCID(p_request.getCid());
 
         return response;
     }
@@ -846,24 +836,25 @@ public class HashMap<K, V> {
 
 
     public void clear() {
-        // lock reentrant write lock
-        m_lock.writeLock().lock();
+        clear(true);
+    }
 
-        // remove all Buckets
-        clearAllBuckets();
+    private void clear(final boolean p_withInitializer) {
+        m_lock.writeLock().lock(); // lock reentrant write lock
 
-        // allocate new Bucket
-        long bucketCID = initBucket((short) 0, Bucket.getInitialMemorySize() + Metadata.getIndividualBucketSize(m_reader, pin(m_metaData_cid)));
-        m_memory.pinning().unpinCID(m_metaData_cid);
+        clearAllBuckets();// remove all Buckets
 
-        // set Hashtable to new Bucket CID
-        clearHashtable(bucketCID);
+        if (p_withInitializer) {
 
-        // reset size
-        Metadata.clearSize(m_writer, m_metaData_address);
+            long bucketCID = initBucket((short) 0, Bucket.getInitialMemorySize() + Metadata.getIndividualBucketSize(m_reader, pin(m_metaData_cid))); // allocate new Bucket
+            m_memory.pinning().unpinCID(m_metaData_cid);
+            clearHashtable(bucketCID); // set Hashtable to new Bucket CID
 
-        // unlock reentrant write lock
-        m_lock.writeLock().unlock();
+        }
+
+        Metadata.clearSize(m_writer, m_metaData_address); // reset size
+
+        m_lock.writeLock().unlock(); // unlock reentrant write lock
     }
 
     private void clearAllBuckets() {
@@ -871,8 +862,7 @@ public class HashMap<K, V> {
 
         java.util.HashMap<Short, ArrayList<Long>> grouped_cids = new java.util.HashMap<>(cids.size());
 
-        // group_cids
-        cids.forEach((cid) -> {
+        cids.forEach((cid) -> { // group_cids
             short nodeId = ChunkID.getCreatorID(cid);
             if (grouped_cids.containsKey(nodeId)) { // exist --> add to list
                 grouped_cids.get(nodeId).add(cid);
@@ -883,17 +873,14 @@ public class HashMap<K, V> {
             }
         });
 
-
         for (short nodeId : grouped_cids.keySet()) {
 
-            if (m_service.isLocal(nodeId)) {
+            if (m_service.isLocal(nodeId)) { // local remove
 
-                // local remove
                 grouped_cids.get(nodeId).forEach((cid) -> m_memory.remove().remove(cid, false));
 
-            } else {
+            } else { // global remove
 
-                // remote remove
                 m_service.sendAsync(new ClearMessage(nodeId, Longs.toArray(grouped_cids.get(nodeId))));
 
             }
@@ -914,17 +901,6 @@ public class HashMap<K, V> {
 
     static void handleClearRequest(@NotNull final ClearMessage p_message, final DXMem p_memory) {
         clearAllBucketsFromLocalMemory(p_memory, p_message.getCids());
-    }
-
-
-    // TODO: optional
-    public Set<K> keySet() {
-        return null;
-    }
-
-    // TODO: optional
-    public Set<Map.Entry<K, V>> entrySet() {
-        return null;
     }
 
     public V getOrDefault(final K p_key, final V p_defaultValue) {
