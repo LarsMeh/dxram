@@ -84,8 +84,8 @@ class Bucket {
         /**
          * Appends a key with his length. A key indicates a new key-value pair, so the size will be increased.
          *
-         * @param p_length length of param p_bytes.
-         * @param p_bytes  key as byte array.
+         * @param p_length length of param p_bytes
+         * @param p_bytes  key as byte array
          */
         void appendKey(final short p_length, final byte[] p_bytes) {
             m_size++;
@@ -98,8 +98,8 @@ class Bucket {
          * the short and casts the length from p_bytes to short needs longer. If the length field will be changed to Integer
          * there is no reason for a parameter length.
          *
-         * @param p_length length of param p_bytes.
-         * @param p_bytes  value as byte array.
+         * @param p_length length of param p_bytes
+         * @param p_bytes  value as byte array
          */
         void appendValue(final short p_length, final byte[] p_bytes) {
             append(p_length, p_bytes);
@@ -155,7 +155,7 @@ class Bucket {
          * Methods {@link #appendKey(short, byte[])}, {@link #appendValue(short, byte[])} will call this.
          *
          * @param p_length length of parameter p_bytes
-         * @param p_bytes  byte array which will written into the stream.
+         * @param p_bytes  byte array which will written into the stream
          */
         private void append(final short p_length, final byte[] p_bytes) {
             try {
@@ -178,24 +178,22 @@ class Bucket {
 
                 m_byteStream.write(ConverterLittleEndian.shortToByteArray(m_size));
                 m_byteStream.write(ConverterLittleEndian.shortToByteArray(m_depth));
+                m_byteStream.close();
 
             } catch (IOException p_e) {
 
                 p_e.printStackTrace();
 
-            } finally {
-
-                m_byteStream.close();
             }
         }
 
 
         /**
-         * Initializes the bucket. It will extract the informations from the raw format and will write into the memory.
+         * Initializes the bucket. It will extract the information from the raw format and will write into the memory.
          *
-         * @param p_writer       DXMem writer for direct memory access.
-         * @param p_address      where the bucket is stored.
-         * @param p_rawDataBytes bucket in raw format.
+         * @param p_writer       DXMem writer for direct memory access
+         * @param p_address      where the bucket is stored
+         * @param p_rawDataBytes bucket in raw format
          * @see de.hhu.bsinfo.dxmem.operations.RawWrite
          */
         private static void initialize(final RawWrite p_writer, final long p_address, final byte[] p_rawDataBytes) {
@@ -208,7 +206,7 @@ class Bucket {
         /**
          * Extracts the depth from a raw format of a bucket.
          *
-         * @param p_rawDataBytes bucket in raw format.
+         * @param p_rawDataBytes bucket in raw format
          * @return extracted depth.
          */
         private static short extractDepth(final byte[] p_rawDataBytes) {
@@ -239,9 +237,9 @@ class Bucket {
     /**
      * Initializes the bucket by setting the header.
      *
-     * @param p_writer  DXMem writer for direct memory access.
-     * @param p_address where the bucket is stored.
-     * @param p_depth   depth of the bucket.
+     * @param p_writer  DXMem writer for direct memory access
+     * @param p_address where the bucket is stored
+     * @param p_depth   depth of the bucket
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
     static void initialize(final RawWrite p_writer, final long p_address, final short p_depth) {
@@ -253,9 +251,9 @@ class Bucket {
     /**
      * Initializes the bucket from a bucket in raw data format. This method will call by {@link #splitBucket(RawRead, RawWrite, long, long, byte, boolean)}.
      *
-     * @param p_writer  DXMem writer for direct memory access.
-     * @param p_address where the bucket is stored.
-     * @param p_rawData bucket which will written to the memory.
+     * @param p_writer  DXMem writer for direct memory access
+     * @param p_address where the bucket is stored
+     * @param p_rawData bucket which will written to the memory
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
     private static void initialize(final RawWrite p_writer, final long p_address, final RawData p_rawData) {
@@ -272,9 +270,9 @@ class Bucket {
     /**
      * Initializer if you send the bucket over the network.
      *
-     * @param p_writer       DXMem writer for direct memory access.
-     * @param p_address      where the bucket is stored.
-     * @param p_rawDataBytes bucket which will written to the memory.
+     * @param p_writer       DXMem writer for direct memory access
+     * @param p_address      where the bucket is stored
+     * @param p_rawDataBytes bucket which will written to the memory
      */
     static void initialize(final RawWrite p_writer, final long p_address, final byte[] p_rawDataBytes) {
         RawData.initialize(p_writer, p_address, p_rawDataBytes);
@@ -283,8 +281,8 @@ class Bucket {
     /**
      * Returns true if the number of stored key-value pairs is equal to the maximum entries a bucket could have.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_address where the bucket is stored.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_address where the bucket is stored
      * @return true if the number of stored key-value pairs is equal to the maximum entries a bucket could have.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap#BUCKET_ENTRIES
@@ -296,16 +294,17 @@ class Bucket {
     /**
      * Returns true if the bucket has stored a key which is equal to parameter p_key.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_address where the bucket is stored.
-     * @param p_key     which will look after.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_address where the bucket is stored
+     * @param p_key     which will look after
      * @return true if the bucket has stored a key which is equal to parameter p_key.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
     static boolean contains(final RawRead p_reader, final long p_address, final byte[] p_key) {
         // TODO: return offset and extra function for contains with default value
         short size = p_reader.readShort(p_address, SIZE_OFFSET);
-        assert size > 0
+        if (size == 0)
+            return false;
 
         int right_offset = DATA_OFFSET;
         int current_entry = 1;
@@ -333,8 +332,8 @@ class Bucket {
     /**
      * Returns the stored depth of the bucket.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_address where the bucket is stored.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_address where the bucket is stored
      * @return the stored depth of the bucket.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
@@ -345,8 +344,8 @@ class Bucket {
     /**
      * Returns the stored size of the bucket.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_address where the bucket is stored.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_address where the bucket is stored
      * @return the stored size of the bucket.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
@@ -359,12 +358,12 @@ class Bucket {
     /**
      * Returns the used bytes which occupy the stored key-value pairs in space and adds the header bytes. With
      * parameter p_withoutHeader the header bytes will not be added. The return value should at any time be less than
-     * the return value of {@link de.hhu.bsinfo.dxmem.operations.Size#size()}. If not then was written over the
+     * the return value of {@link de.hhu.bsinfo.dxmem.operations.Size#size(long)}. If not then was written over the
      * allocated memory size for this bucket.
      *
-     * @param p_reader        DXMem reader for direct memory access.
-     * @param p_address       where the bucket is stored.
-     * @param p_withoutHeader indicates if the heade bytes should be subtract or not.
+     * @param p_reader        DXMem reader for direct memory access
+     * @param p_address       where the bucket is stored
+     * @param p_withoutHeader indicates if the header bytes should be subtract or not
      * @return the used bytes which occupy the stored key-value pairs in space and adds the header bytes.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
@@ -375,11 +374,11 @@ class Bucket {
     /**
      * Determine if a put operation for a key-value pair will take more memory space than allocated.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_size    DXmem size-operation.
-     * @param p_cid     of the bucket.
-     * @param p_address where the bucket is stored.
-     * @param p_bytes   space which will need the key value pair.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_size    DXMem size-operation
+     * @param p_cid     ChunkID of the bucket
+     * @param p_address where the bucket is stored
+     * @param p_bytes   space which will need the key value pair
      * @return true if the key-value pair could be inserted without resize the bucket.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.Size
@@ -394,11 +393,11 @@ class Bucket {
     /**
      * Returns the size which needs the bucket to stored the given bytes.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_size    DXmem size-operation.
-     * @param p_cid     of the bucket.
-     * @param p_address where the bucket is stored.
-     * @param p_bytes   space which will need the key value pair.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_size    DXmem size-operation
+     * @param p_cid     ChunkID of the bucket
+     * @param p_address where the bucket is stored
+     * @param p_bytes   space which will need the key value pair
      * @return the size which needs the bucket to stored the given bytes.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.Size
@@ -411,13 +410,13 @@ class Bucket {
     }
 
     /**
-     * Removes a key-value pair from this bucket. The key will identifie the pair. The method returns the matching
+     * Removes a key-value pair from this bucket. The key will identify the pair. The method returns the matching
      * value.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_writer  DXMem writer for direct memory access.
-     * @param p_address where the bucket is stored.
-     * @param p_key     key as byte array.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_writer  DXMem writer for direct memory access
+     * @param p_address where the bucket is stored
+     * @param p_key     key as byte array
      * @return the matching value or null if the pair is not stored.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
@@ -475,14 +474,14 @@ class Bucket {
     }
 
     /**
-     * Removes a key-value pair from this bucket. The key and the value will identifie the pair. The method returns true
+     * Removes a key-value pair from this bucket. The key and the value will identify the pair. The method returns true
      * if a matching key-value pair is stored.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_writer  DXMem writer for direct memory access.
-     * @param p_address where the bucket is stored.
-     * @param p_key     key as byte array.
-     * @param p_value   value as byte array.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_writer  DXMem writer for direct memory access
+     * @param p_address where the bucket is stored
+     * @param p_key     key as byte array
+     * @param p_value   value as byte array
      * @return the matching value or null if the pair is not stored.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
@@ -518,7 +517,7 @@ class Bucket {
 
                 if (Arrays.equals(stored_value, p_value)) { // compare values
 
-                    if (current_entry > 1 && current_entry < size) // close space TODO: test
+                    if (size - 1 > 0) // close space
                         copy(p_reader, p_writer, p_address, right_offset, usedBytes - right_offset, left_offset);
 
                     // update used bytes
@@ -542,9 +541,9 @@ class Bucket {
     /**
      * Returns the matching value for parameter p_key or null if no key-value pair is stored.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_address where the bucket is stored.
-     * @param p_key     key as byte array.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_address where the bucket is stored
+     * @param p_key     key as byte array
      * @return the matching value for parameter p_key or null if no key-value pair is stored.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
@@ -588,11 +587,11 @@ class Bucket {
      * For correct usage call methods {@link #isEnoughSpace(RawRead, Size, long, long, int)} and optional
      * {@link #sizeForFit(RawRead, Size, long, long, int)}.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_writer  DXMem writer for direct memory access.
-     * @param p_address where the bucket is stored.
-     * @param p_key     key as byte array.
-     * @param p_value   value as byte array.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_writer  DXMem writer for direct memory access
+     * @param p_address where the bucket is stored
+     * @param p_key     key as byte array
+     * @param p_value   value as byte array
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
@@ -601,8 +600,8 @@ class Bucket {
         short size = p_reader.readShort(p_address, SIZE_OFFSET);
         assert size >= 0;
 
-        int offset = DATA_OFFSET;
-        int current_entry = 1;
+        int offset = p_reader.readInt(p_address, USED_BYTES_OFFSET);
+        /*int current_entry = 1;
         short length;
 
         while (current_entry <= size) { // run through data
@@ -615,7 +614,7 @@ class Bucket {
             offset += LENGTH_BYTES + length;
 
             current_entry++;
-        }
+        }*/
 
         // write key-value pair
         p_writer.writeShort(p_address, offset, (short) p_key.length);
@@ -639,10 +638,10 @@ class Bucket {
      * Splits the bucket and the new bucket is local, so the data could be written to the memory.
      * Important: the allocated new bucket has to be same size than this bucket
      *
-     * @param p_reader      DXMem reader for direct memory access.
-     * @param p_writer      DXMem writer for direct memory access.
-     * @param p_own_address where the bucket is stored which will splitted.
-     * @param p_address     where the new bucket will stored to.
+     * @param p_reader      DXMem reader for direct memory access
+     * @param p_writer      DXMem writer for direct memory access
+     * @param p_own_address where the bucket is stored which will split
+     * @param p_address     where the new bucket will stored to
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
@@ -656,13 +655,13 @@ class Bucket {
      * It indicates that the new bucket is local.
      * The incurred space will be closed.
      *
-     * @param p_reader         DXMem reader for direct memory access.
-     * @param p_writer         DXMem writer for direct memory access.
-     * @param p_own_address    where the bucket is stored which will splitted.
-     * @param p_address        where the new bucket will stored to.
-     * @param p_hashId         the used hash algorithm by the HashMap.
-     * @param p_withInitialize indicates if the initialze method will be call to initialize the new chunk.
-     * @return the raw data format from the new bucket
+     * @param p_reader         DXMem reader for direct memory access
+     * @param p_writer         DXMem writer for direct memory access
+     * @param p_own_address    where the bucket is stored which will split
+     * @param p_address        where the new bucket will stored to
+     * @param p_hashId         the used hash algorithm by the HashMap
+     * @param p_withInitialize indicates if the initialize method will be call to initialize the new chunk
+     * @return the raw data format from the new bucket.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
@@ -770,10 +769,9 @@ class Bucket {
      * Splits the bucket and the new bucket is gloabl, so the data could not be written to the memory.
      * Important: the allocated new bucket has to be same size than this bucket
      *
-     * @param p_reader      DXMem reader for direct memory access.
-     * @param p_writer      DXMem writer for direct memory access.
-     * @param p_own_address where the bucket is stored which will splitted.
-     * @param p_address     where the new bucket will stored to.
+     * @param p_reader      DXMem reader for direct memory access
+     * @param p_writer      DXMem writer for direct memory access
+     * @param p_own_address where the bucket is stored which will splitted
      * @param p_hashId      the used hash algorithm by the HashMap.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
@@ -786,25 +784,23 @@ class Bucket {
     /**
      * Returns the calculated stored size of a key-value pair when it will be inserted into the bucket.
      *
-     * @param p_suspect  a byte array (key).
-     * @param p_suspect2 a byte array (value).
+     * @param p_suspect  a byte array (key)
+     * @param p_suspect2 a byte array (value)
      * @return the calculated stored size of a key-value pair.
      */
     static int calcStoredSize(final byte[] p_suspect, final byte[] p_suspect2) {
         return p_suspect.length + p_suspect2.length + (LENGTH_BYTES * 2);
     }
 
-    // TODO: copy include or exclude from?
-
     /**
      * Copies a range of bytes.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_writer  DXMem writer for direct memory access.
-     * @param p_address where the bucket is stored.
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_writer  DXMem writer for direct memory access
+     * @param p_address where the bucket is stored
      * @param p_from    offset from where the copy will start (include)
-     * @param p_size    range which should be copied.
-     * @param p_to      offset to be copied to.
+     * @param p_size    range which should be copied
+     * @param p_to      offset to be copied to (include)
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
@@ -823,9 +819,9 @@ class Bucket {
     /**
      * Returns the calculated individual bucket size for given length of key and value.
      *
-     * @param p_entries    maximum entries which the bcuket should store.
-     * @param p_keyBytes   size of a key.
-     * @param p_valueBytes size of a value.
+     * @param p_entries    maximum entries which the bcuket should store
+     * @param p_keyBytes   size of a key
+     * @param p_valueBytes size of a value
      * @return the calculated individual bucket size for given length of key and value.
      */
     static int calcIndividualBucketSize(final int p_entries, final short p_keyBytes, final short p_valueBytes) {
@@ -835,11 +831,11 @@ class Bucket {
     /**
      * Returns a representation of this bucket as string.
      *
-     * @param p_size    DXMem size-operation.
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_cid     of the bucket.
-     * @param p_address where the bucket is stored.
-     * @return a representation of this bucket as string.
+     * @param p_size    DXMem size-operation
+     * @param p_reader  DXMem reader for direct memory access
+     * @param p_cid     of the bucket
+     * @param p_address where the bucket is stored
+     * @return a representation of this bucket as string
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.Size
      */

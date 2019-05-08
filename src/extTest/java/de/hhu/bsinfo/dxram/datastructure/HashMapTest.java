@@ -5,9 +5,11 @@ import de.hhu.bsinfo.dxram.DXRAM;
 import de.hhu.bsinfo.dxram.DXRAMJunitRunner;
 import de.hhu.bsinfo.dxram.DXRAMTestConfiguration;
 import de.hhu.bsinfo.dxram.TestInstance;
+import de.hhu.bsinfo.dxram.datastructure.util.Stopwatch;
 import de.hhu.bsinfo.dxram.util.NodeRole;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
+import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 @RunWith(DXRAMJunitRunner.class)
 @DXRAMTestConfiguration(
@@ -182,8 +184,9 @@ public class HashMapTest {
 
         HashMap<Integer, Integer> map = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1);
 
-        for (int i = 0; i < 1000000; i++) {
+        for (int i = 0; i < 100; i++) {
             map.put(i, i + 1);
         }
+
     }
 }

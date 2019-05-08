@@ -10,6 +10,7 @@ import de.hhu.bsinfo.dxmem.data.ChunkID;
 import de.hhu.bsinfo.dxmem.operations.Pinning;
 import de.hhu.bsinfo.dxmem.operations.RawRead;
 import de.hhu.bsinfo.dxmem.operations.RawWrite;
+import de.hhu.bsinfo.dxmem.operations.Size;
 import de.hhu.bsinfo.dxram.datastructure.messages.*;
 import de.hhu.bsinfo.dxram.datastructure.util.*;
 import de.hhu.bsinfo.dxram.nameservice.NameserviceComponent;
@@ -36,7 +37,7 @@ import org.jetbrains.annotations.NotNull;
  * @param <V> Generic type for Value
  * @see de.hhu.bsinfo.dxmem.DXMem
  * @see de.hhu.bsinfo.dxmem.operations.RawWrite
- * @see de.hhu.bsinfo.dxmem.operations.RawWRead
+ * @see de.hhu.bsinfo.dxmem.operations.RawRead
  * @see de.hhu.bsinfo.dxmem.operations.Pinning
  * @see de.hhu.bsinfo.skema.Skema
  * @see de.hhu.bsinfo.dxram.datastructure.DataStructureService
@@ -54,7 +55,7 @@ public class HashMap<K, V> {
 
     static {
         HASH_TABLE_DEPTH_LIMIT = 31;
-        BUCKET_ENTRIES_EXP = 5;
+        BUCKET_ENTRIES_EXP = 8;
         BUCKET_ENTRIES = (int) Math.pow(2, BUCKET_ENTRIES_EXP);
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;
@@ -104,7 +105,7 @@ public class HashMap<K, V> {
     }
 
     /**
-     * Constructs an empty HashMap with default hash algorithm {@link de.hhu.bsinfo.datastrucutre.util.HashFunctions#MURMUR_32}.
+     * Constructs an empty HashMap with default hash algorithm {@link de.hhu.bsinfo.dxram.datastructure.util.HashFunctions#MURMUR3_32}.
      *
      * @param p_memory          an instance of DXMem to get direct memory access
      * @param p_service         for network communication
@@ -117,11 +118,11 @@ public class HashMap<K, V> {
      */
     HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
             final List<Short> p_onlinePeers, final int p_numberOfNodes, final short p_keyBytes, final short p_valueBytes) {
-        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, p_numberOfNodes, p_keyBytes, p_valueBytes, HashFunctions.MURMUR_32);
+        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, p_numberOfNodes, p_keyBytes, p_valueBytes, HashFunctions.MURMUR3_32);
     }
 
     /**
-     * Constructs an empty HashMap with default hash algorithm {@link de.hhu.bsinfo.datastrucutre.util.HashFunctions#MURMUR_32}
+     * Constructs an empty HashMap with default hash algorithm {@link de.hhu.bsinfo.dxram.datastructure.util.HashFunctions#MURMUR3_32}
      * and will distribute them on all online peers.
      *
      * @param p_memory          an instance of DXMem to get direct memory access
@@ -134,7 +135,7 @@ public class HashMap<K, V> {
      */
     HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
             final List<Short> p_onlinePeers, final short p_keyBytes, final short p_valueBytes) {
-        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, -1, p_keyBytes, p_valueBytes, HashFunctions.MURMUR_32);
+        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, -1, p_keyBytes, p_valueBytes, HashFunctions.MURMUR3_32);
     }
 
     /**
@@ -151,7 +152,7 @@ public class HashMap<K, V> {
      * @param p_hashFunctionId  id for the hash algorithm which should be used
      * @see de.hhu.bsinfo.dxmem
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
-     * @see de.hhu.bsinfo.dxmem.operations.RawWRead
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.Pinning
      * @see de.hhu.bsinfo.dxram.datastructure.DataStructureService
      */
@@ -194,7 +195,7 @@ public class HashMap<K, V> {
      *
      * @see de.hhu.bsinfo.dxmem.operations.Remove
      * @see de.hhu.bsinfo.dxmem.operations.Pinning
-     * @see de.hhu.bsinfo.dxram.datastructure.DataStructureSerive#removeHashMap(HashMap p_hashMap)
+     * @see de.hhu.bsinfo.dxram.datastructure.DataStructureService#removeHashMap(HashMap p_hashMap)
      */
     void removeThisObject() {
         m_lock.writeLock().lock(); // lock reentrant write lock7
@@ -364,8 +365,8 @@ public class HashMap<K, V> {
     private static class Result {
 
         private boolean m_success = false; // true if method was successful
-        private long m_new_bucket = ChunkID.INVALID_ID; // ChunkID when bucket got splitted
-        private boolean m_resized = false; // true if a resize is neccessary
+        private long m_new_bucket = ChunkID.INVALID_ID; // ChunkID when bucket got split
+        private boolean m_resized = false; // true if a resize is necessary
         private boolean m_error = false; // true if an error occurred during the method
         private boolean m_overwrite = false; // true if a key exists and value was overwrite
 
@@ -405,7 +406,7 @@ public class HashMap<K, V> {
      * @throws java.lang.NullPointerException
      * @throws de.hhu.bsinfo.dxmem.core.MemoryRuntimeException
      */
-    public boolean put(final K p_key, final V p_value) { // TODO: throws
+    public boolean put(final K p_key, final V p_value) {
         assert p_key != null && p_value != null;
         byte[] key, value;
         HashMap.Result result;
@@ -419,7 +420,7 @@ public class HashMap<K, V> {
                 Metadata.setSkemaValueType(m_writer, m_metaDataAdr, Skema.resolveIdentifier(p_value.getClass()));
 
             m_skemaRegistrationSwitch = false;
-        }
+        }Stopwatch.GLOBAL.split("skema switch");
 
         if (m_serializeKey) // Serialize
             key = Skema.serialize(p_key);
@@ -430,22 +431,22 @@ public class HashMap<K, V> {
             value = Skema.serialize(p_value);
         else
             value = (byte[]) p_value;
-
+        Stopwatch.GLOBAL.split("Serialize");
         final byte[] hash = HashFunctions.hash(m_hashFunctionId, key);
-
+        Stopwatch.GLOBAL.split("hash");
         m_lock.writeLock().lock(); // reentrant write lock
-
-        final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr));
-        final long cid = Hashtable.lookup(m_reader, m_hashtableAdr, index); // Lookup in Hashtable
-
+        Stopwatch.GLOBAL.split("lock");
+        int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr));
+        long cid = Hashtable.lookup(m_reader, m_hashtableAdr, index); // Lookup in Hashtable
+        Stopwatch.GLOBAL.split("lookup");
         do {
 
             if (m_service.isLocal(cid)) { // bucket is local
 
                 long address = pin(cid);
-
+                Stopwatch.GLOBAL.split("put bef");
                 result = putLocal(address, cid, hash, key, value);
-
+                Stopwatch.GLOBAL.split("put aft");
                 m_pinning.unpinCID(cid);
 
             } else { // bucket is global
@@ -493,7 +494,7 @@ public class HashMap<K, V> {
 
                 m_lock.writeLock().unlock();
 
-                log.error("Could not put key into HashMap\nKey = " + Arrays.toString(p_key));
+                log.error("Could not put key into HashMap\nKey = " + Arrays.toString(key));
 
                 return false;
 
@@ -508,6 +509,10 @@ public class HashMap<K, V> {
         m_lock.writeLock().unlock(); // unlock reentrant write lock
 
         return true;
+    }
+
+    public long allocate(final int p_size){
+        return m_memory.create().create(p_size);
     }
 
     /**
@@ -598,7 +603,7 @@ public class HashMap<K, V> {
 
     /**
      * Allocates a ChunkID and calls the bucketsplit from {@link de.hhu.bsinfo.dxram.datastructure.Bucket}. It will send
-     * the raw format  over the netwrok if its necessary. Returns a result object based on the executed operation and its
+     * the raw format  over the network if its necessary. Returns a result object based on the executed operation and its
      * result.
      *
      * @param p_address        address where the bucket is stored
@@ -1192,10 +1197,10 @@ public class HashMap<K, V> {
     }
 
     /**
-     * Clears the Hashtable by calling {@link de.hhu.bsinfo.dxram.datastructure.Hashtable.clear(Size, RawWrite, long, long, long)}.
+     * Clears the Hashtable by calling {@link de.hhu.bsinfo.dxram.datastructure.Hashtable#clear(Size, RawWrite, long, long, long)}.
      *
      * @param p_defaultEntry
-     * @see de.hhu.bsinfo.dxram.datastructure.Hashtable.clear(Size, RawWrite, long, long, long)
+     * @see de.hhu.bsinfo.dxram.datastructure.Hashtable#clear(Size, RawWrite, long, long, long)
      */
     private void clearHashtable(final long p_defaultEntry) {
         Hashtable.clear(m_memory.size(), m_writer, m_hashtableCID, m_hashtableAdr, p_defaultEntry);

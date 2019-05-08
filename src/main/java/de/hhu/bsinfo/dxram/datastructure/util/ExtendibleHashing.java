@@ -53,6 +53,11 @@ public final class ExtendibleHashing {
         if (p_depth < 1 || p_depth > 31 || p_depth > (p_array.length * 8)) {
 
             log.error("Depth is invalid: " + p_depth);
+            try {
+                throw new RuntimeException();
+            } catch (RuntimeException p_e) {
+                p_e.printStackTrace();
+            }
 
             return -1;
         }
