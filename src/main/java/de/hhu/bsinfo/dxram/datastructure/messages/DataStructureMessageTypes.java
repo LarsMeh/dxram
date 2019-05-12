@@ -33,6 +33,9 @@ public class DataStructureMessageTypes {
 
     public static final byte SUBTYPE_CLEAR_MESSAGE = 12;
 
+    public static final byte SUBTYP_MEM_INFO_REQ = 13;
+    public static final byte SUBTYP_MEM_INFO_RES = 14;
+
 
     // SUB SUB Types
     public static final byte SUBSUBTYPE_ERROR = 20; // also signal usage
@@ -93,6 +96,10 @@ public class DataStructureMessageTypes {
                 return "GET_RES";
             case SUBTYPE_CLEAR_MESSAGE:
                 return "CLEAR_MESSAGE";
+            case SUBTYP_MEM_INFO_REQ:
+                return "MEM_INFO_REQ";
+            case SUBTYP_MEM_INFO_RES:
+                return "MEM_INFO_RES";
             default:
                 return "Invalid Type(" + p_type + ")";
         }

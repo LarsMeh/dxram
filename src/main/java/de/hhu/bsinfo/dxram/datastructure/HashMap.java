@@ -1107,18 +1107,7 @@ public class HashMap<K, V> {
     private void clearAllBuckets() {
         HashSet<Long> cids = Hashtable.bucketCIDs(m_memory.size(), m_reader, m_hashtableCID, m_hashtableAdr); // differen ChunkIDs
 
-        java.util.HashMap<Short, ArrayList<Long>> grouped_cids = new java.util.HashMap<>(cids.size());
-
-        cids.forEach((cid) -> { // group_cids
-            short nodeId = ChunkID.getCreatorID(cid);
-            if (grouped_cids.containsKey(nodeId)) { // exist --> add to list
-                grouped_cids.get(nodeId).add(cid);
-            } else { // not exist --> put Entry<nodeId,list>
-                ArrayList<Long> list = new ArrayList<>();
-                list.add(cid);
-                grouped_cids.put(nodeId, list);
-            }
-        });
+        ava.util.HashMap<Short, ArrayList<Long>> grouped_cids = getAllGroupedChunkIDs();
 
         for (short nodeId : grouped_cids.keySet()) { // iterate over all NodeIDs
 
@@ -1126,7 +1115,7 @@ public class HashMap<K, V> {
 
                 grouped_cids.get(nodeId).forEach((cid) -> {
                     m_pinning.unpinCID(cid);
-                    m_memory.remove().remove(cid, false)
+                    m_memory.remove().remove(cid, false);
                 });
 
             } else { // global remove
@@ -1184,6 +1173,96 @@ public class HashMap<K, V> {
     public V getOrDefault(final K p_key, final V p_defaultValue) {
         V ret = this.get(p_key);
         return ret == null ? p_defaultValue : ret;
+    }
+
+    /**
+     * Writes all memory information from this object into the file.
+     *
+     * @param p_file File where the data is written to
+     */
+    void extractMemoryInformation(final File p_file) {
+        long metadata = 0;
+        long allocated = 0;
+        long used = 0;
+        long numberOfBuckets = 0;
+
+        java.util.HashMap<Short, ArrayList<Long>> grouped_cids = getAllGroupedChunkIDs();
+
+        for (short nodeId : grouped_cids.keySet()) { // iterate over all NodeIDs
+
+            long[] group = Longs.toArray(grouped_cids.get(nodeId));
+            numberOfBuckets += group.length;
+
+            if (m_service.isLocal(nodeId)) { // local
+
+                extractMemoryInformationFromLocalMemory(m_memory, group);
+
+            } else { // global
+
+                MemoryInformationResponse response = (MemoryInformationResponse) m_service.sendSsync(new MemoryInformationRequest(nodeId, group));
+                allocated += response.getAllocated();
+                used += response.getUsed();
+
+            }
+        }
+
+        metadata = numberOfBuckets * Bucket.getMetadata();
+
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(m_file))) {
+
+            bw.write("%d\n", Metadata.getSize());
+            bw.write("%d,%d,%d,%d\n", numberOfBuckets, allocated, used, metadata);
+            short depth = Hashtable.getDepth();
+            bw.write("%d,%d", depth, m_memory.size().size(m_hashtableCID));
+            bw.write("%d", m_memory.size().size(m_metaDataCID));
+            bw.write("%d", m_memory.size().size(m_nodepool_cid));
+
+        } catch (IOException p_e) {
+            log.error("IOException catched while try to write memory information to " + p_file.getAbsolutePath());
+        }
+    }
+
+    static MemoryInformationResponse handleMemoryInformationRequest(final MemoryInformationRequest p_request, final DXMem p_memory) {
+        assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_MEM_INFO_REQ;
+
+        long[] information = extractMemoryInformationFromLocalMemory(p_memory, p_request.getCids());
+
+        return new MemoryInformationRequest(information[0], information[1]);
+    }
+
+    static long[] extractMemoryInformationFromLocalMemory(final DXMem p_memory, final long[] p_chunkID) {
+        long[] information = {0L, 0L};
+
+        for (int i = 0; i < p_chunkID.length; i++) {
+            information[0] += p_memory.size().size(p_chunkID[i]);
+            information[1] += Bucket.getUsedBytes(p_memory.rawRead(), p_memory.pinning().translate(p_chunkID[i]));
+        }
+
+        return information;
+    }
+
+    /**
+     * Collects and return all different ChunkIDs from the hashtable and groups them by their NodeID.
+     *
+     * @return all different ChunkIDs from the hashtable and groups them by their NodeID.
+     */
+    private java.util.HashMap<Short, ArrayList<Long>> getAllGroupedChunkIDs() {
+        HashSet<Long> cids = Hashtable.bucketCIDs(m_memory.size(), m_reader, m_hashtableCID, m_hashtableAdr); // differen ChunkIDs
+
+        java.util.HashMap<Short, ArrayList<Long>> grouped_cids = new java.util.HashMap<>(cids.size());
+
+        cids.forEach((cid) -> { // group_cids
+            short nodeId = ChunkID.getCreatorID(cid);
+            if (grouped_cids.containsKey(nodeId)) { // exist --> add to list
+                grouped_cids.get(nodeId).add(cid);
+            } else { // not exist --> put Entry<nodeId,list>
+                ArrayList<Long> list = new ArrayList<>();
+                list.add(cid);
+                grouped_cids.put(nodeId, list);
+            }
+        });
+
+        return grouped_cids;
     }
 
     /**

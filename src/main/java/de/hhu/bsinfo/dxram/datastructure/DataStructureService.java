@@ -128,8 +128,28 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
                 (short) p_keyBytes, (short) p_valueBytes);
     }
 
-    public void removeHashMap(HashMap p_hashMap) {
+    /**
+     * Calls the package private method {@link de.hhu.bsinfo.dxram.datastructure.HashMap#remove}.
+     *
+     * @param p_hashMap HashMap which should be removed from DXRam
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap#remove
+     */
+    public void removeHashMap(final HashMap p_hashMap) {
         p_hashMap.removeThisObject();
+    }
+
+
+    /**
+     * Calls the package private method {@link de.hhu.bsinfo.dxram.datastructure.HashMap#extractMemoryInformation}.
+     *
+     * @param p_hashMap HashMap which will inspected
+     * @param p_file    File where the memory information will write to
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap#extractMemoryInformation
+     */
+    public void extractMemoryInformation(final HashMap p_hashMap, final File p_file) {
+        if (p_file.exists()) {
+            p_hashMap.extractMemoryInformation(p_file);
+        }
     }
 
     /**
@@ -276,6 +296,16 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         HashMap.handleClearRequest(p_message, m_chunk.getMemory());
     }
 
+    /**
+     * Calls the handle method from the matching data structure.
+     *
+     * @param p_request request for a memory information
+     */
+    private void handleMemoryInformationRequest(final MemoryInformationRequest p_request) {
+        LOGGER.warn(p_request.toString());
+        sendResponse(HashMap.handleMemoryInformationRequest(p_request, m_chunk.getMemory()));
+    }
+
 
     /**
      * Returns true if the given nodeId is equal to the nodeId of this instance.
@@ -339,6 +369,8 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
                 case DataStructureMessageTypes.SUBTYPE_CLEAR_MESSAGE:
                     handleClearMessage((ClearMessage) p_message);
                     break;
+                case DataStructureService.SUBTYPE_MEM_INFO_REQ:
+                    handleMemoryInformationRequest((MemoryInformationRequest) p_message);
                 default:
                     break;
             }
@@ -362,6 +394,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_REQ, RemoveRequest.class); // TODO erlaubt?
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_WITH_KEY_REQ, RemoveRequest.class); // TODO erlaubt?
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_GET_REQ, GetRequest.class);
+        m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_MEM_INFO_REQ, MemoryInformationRequest.class);
 
         // Response
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_PUT_RES, PutResponse.class);
@@ -369,6 +402,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_SIGNAL_RES, SignalResponse.class);
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_RES, RemoveResponse.class);
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_GET_RES, GetResponse.class);
+        m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_MEM_INFO_RES, MemoryInformationResponse.class);
 
         // Messages
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_CLEAR_MESSAGE, ClearMessage.class);
@@ -389,6 +423,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_REQ, this);
         m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_WITH_KEY_REQ, this);
         m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_GET_REQ, this);
+        m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_MEM_INFO_REQ, this);
 
         // Response
         m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_PUT_RES, this);
@@ -396,6 +431,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_SIGNAL_RES, this);
         m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_RES, this);
         m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_GET_RES, this);
+        m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_MEM_INFO_RES, this);
 
         // Messages
         m_network.register(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_CLEAR_MESSAGE, this);
