@@ -159,6 +159,10 @@ public class HashMap<K, V> {
     HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
             final List<Short> p_onlinePeers, final int p_numberOfNodes, final short p_keyBytes,
             final short p_valueBytes, final byte p_hashFunctionId) {
+        if (!HashMap.assertInitialParameter(p_name, p_initialCapacity, m_boot.getOnlinePeerIds(), p_numberOfNodes,
+                (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId))
+            throw new InvalidParameterException();
+
         m_lock = new ReentrantReadWriteLock(true);
 
         m_service = p_service;
@@ -179,10 +183,10 @@ public class HashMap<K, V> {
         long bucket_cid = initBucket(BUCKET_INITIAL_DEPTH, Bucket.calcIndividualBucketSize(HashMap.BUCKET_ENTRIES, p_keyBytes, p_valueBytes)); // Init Bucket
 
         m_hashtableCID = initHashtable(hashtable_depth, bucket_cid); // Init Hashtable
-        m_hashtableAdr = m_memory.pinning().pin(m_hashtableCID).getAddress();
+        m_hashtableAdr = m_memory.pinning().translate(m_hashtableCID);
 
         m_metaDataCID = initMetaData(m_nodepool_cid, m_hashtableCID, Bucket.calcIndividualBucketSize(BUCKET_ENTRIES, p_keyBytes, p_valueBytes), p_hashFunctionId); // Init Metadata
-        m_metaDataAdr = m_memory.pinning().pin(m_metaDataCID).getAddress();
+        m_metaDataAdr = m_memory.pinning().translate(m_metaDataCID);
 
         m_service.registerDataStructure(m_metaDataCID, p_name); // Register Metadata
     }
@@ -202,13 +206,13 @@ public class HashMap<K, V> {
 
         this.clear(false);
 
+        m_memory.pinning().unpinCID(m_nodepool_cid);
         m_memory.remove().remove(m_nodepool_cid);
 
         m_memory.pinning().unpinCID(m_hashtableAdr);
         m_memory.remove().remove(m_hashtableCID);
 
         m_memory.pinning().unpinCID(m_metaDataAdr);
-
         m_memory.remove().remove(m_metaDataCID);
 
         m_lock.writeLock().unlock(); // unlock reentrant write lock
@@ -224,11 +228,9 @@ public class HashMap<K, V> {
      */
     private long initNodePool(@NotNull final List<Short> p_onlinePeers, final int p_numberOfNodes) {
         long cid = m_memory.create().create(NodePool.getInitialMemorySize(p_onlinePeers.size(), p_numberOfNodes));
-        long address = lockAndPin(cid);
+        long address = pin(cid);
 
         NodePool.initialize(m_writer, p_onlinePeers, address, p_numberOfNodes);
-
-        unlockAndUnpin(cid);
 
         return cid;
     }
@@ -244,11 +246,9 @@ public class HashMap<K, V> {
     private long initBucket(final short p_depth, final int p_individualBucketSize) {
         int size = Bucket.getInitialMemorySize() + p_individualBucketSize;
         long cid = m_memory.create().create(size);
-        long address = lockAndPin(cid);
+        long address = pin(cid);
 
         Bucket.initialize(m_writer, address, p_depth);
-
-        unlockAndUnpin(cid);
 
         return cid;
     }
@@ -264,11 +264,9 @@ public class HashMap<K, V> {
     private long initHashtable(final short p_depth, final long p_defaultEntry) {
         int initialSize = Hashtable.getInitialMemorySize(p_depth);
         long cid = m_memory.create().create(initialSize);
-        long address = lockAndPin(cid);
+        long address = pin(cid);
 
         Hashtable.initialize(m_writer, address, initialSize, p_depth, p_defaultEntry);
-
-        unlockAndUnpin(cid);
 
         return cid;
     }
@@ -286,46 +284,11 @@ public class HashMap<K, V> {
     private long initMetaData(final long p_nodePool_cid, final long p_hashtable_cid, final int p_individual_bucketSize,
                               final byte p_hashFunctionId) {
         long cid = m_memory.create().create(Metadata.getInitialMemorySize());
-        long address = lockAndPin(cid);
+        long address = pin(cid);
 
         Metadata.initialize(m_writer, address, p_hashtable_cid, p_nodePool_cid, 0L, SKEMA_DEFAULT_ID, p_individual_bucketSize, p_hashFunctionId);
 
-        unlockAndUnpin(cid);
-
         return cid;
-    }
-
-
-    /**
-     * Returns the matching virtual address for the ChunkID by locking and pinning them. This method is not
-     * synchronized or atomic.
-     *
-     * @param p_cid ChunkID which will be locked and pinned
-     * @return the matching virtual address for p_cid.
-     * @see de.hhu.bsinfo.dxmem.operations.Pinning
-     */
-    private long lockAndPin(final long p_cid) {
-        long address = pin(p_cid);
-
-        m_memory.lock().lock(p_cid, true, -1);
-
-        return address;
-    }
-
-    /**
-     * Unlocks the ChunkID and will unpin them after. This method is not synchronized or atomic.
-     * <p>
-     * Care: You can unpin an address which is actually used by another thread and if this thread try to unpin it
-     * or write at the address it will failed or overwrite data from another chunk.
-     *
-     * @param p_cid ChunkID which will be unlocked and unpinned
-     * @see de.hhu.bsinfo.dxmem.operations.Pinning
-     */
-    private void unlockAndUnpin(final long p_cid) {
-
-        m_memory.lock().unlock(p_cid, true);
-
-        m_memory.pinning().unpinCID(p_cid);
     }
 
     /**
@@ -670,10 +633,8 @@ public class HashMap<K, V> {
      * @see de.hhu.bsinfo.dxram.datastructure.NodePool
      */
     private long allocateCID(final int p_bucketSize) {
-        long address = pin(m_nodepool_cid);
+        long address = m_pinning.translate(m_nodepool_cid);
         short nodeId = NodePool.getRandomNode(m_reader, address);
-
-        m_pinning.unpin(m_nodepool_cid);
 
         if (m_service.isLocal(nodeId))
             return m_memory.create().create(p_bucketSize);

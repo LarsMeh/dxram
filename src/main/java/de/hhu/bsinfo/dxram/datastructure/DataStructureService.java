@@ -62,12 +62,70 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
     public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_numberOfNodes,
                                               final int p_keyBytes, final int p_valueBytes, final byte p_hashFunctionId) {
 
-        if (!HashMap.assertInitialParameter(p_name, p_initialCapacity, m_boot.getOnlinePeerIds(), p_numberOfNodes,
-                (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId))
-            throw new InvalidParameterException();
-
         return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),
                 p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId);
+    }
+
+    /**
+     * Creates a HashMap on all online Peers.
+     *
+     * @param p_name            the registration name for the {@link de.hhu.bsinfo.dxram.nameservice.NameserviceComponent}.
+     * @param p_initialCapacity indicates the initial capacity of the HashMap.
+     * @param p_keyBytes        indicate how big is the key.
+     * @param p_valueBytes      indicate how big is the value.
+     * @param p_hashFunctionId  indicates which hash algorithm should be used.
+     * @param <K>               Generic type of the key.
+     * @param <V>               Generic type of the value.
+     * @return An object of a HashMap.
+     * @throws java.security.InvalidParameterException
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
+    public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_keyBytes,
+                                              final int p_valueBytes, final byte p_hashFunctionId) {
+
+        return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),
+                (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId);
+    }
+
+    /**
+     * Creates a HashMap with default hash algorithm.
+     *
+     * @param p_name            the registration name for the {@link de.hhu.bsinfo.dxram.nameservice.NameserviceComponent}.
+     * @param p_initialCapacity indicates the initial capacity of the HashMap.
+     * @param p_numberOfNodes   indicates on how many peers the HashMap should be stored her buckets.
+     * @param p_keyBytes        indicate how big is the key.
+     * @param p_valueBytes      indicate how big is the value.
+     * @param <K>               Generic type of the key.
+     * @param <V>               Generic type of the value.
+     * @return An object of a HashMap.
+     * @throws java.security.InvalidParameterException
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
+    public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_numberOfNodes,
+                                              final int p_keyBytes, final int p_valueBytes) {
+
+        return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),
+                p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes);
+    }
+
+    /**
+     * Creates a HashMap on all online Peers and with default hash algorithm.
+     *
+     * @param p_name            the registration name for the {@link de.hhu.bsinfo.dxram.nameservice.NameserviceComponent}.
+     * @param p_initialCapacity indicates the initial capacity of the HashMap.
+     * @param p_keyBytes        indicate how big is the key.
+     * @param p_valueBytes      indicate how big is the value.
+     * @param <K>               Generic type of the key.
+     * @param <V>               Generic type of the value.
+     * @return An object of a HashMap.
+     * @throws java.security.InvalidParameterException
+     * @see de.hhu.bsinfo.dxram.datastructure.HashMap
+     */
+    public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_keyBytes,
+                                              final int p_valueBytes) {
+
+        return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),
+                (short) p_keyBytes, (short) p_valueBytes);
     }
 
     public void removeHashMap(HashMap p_hashMap) {
