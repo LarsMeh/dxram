@@ -384,7 +384,8 @@ public class HashMap<K, V> {
                 Metadata.setSkemaValueType(m_writer, m_metaDataAdr, Skema.resolveIdentifier(p_value.getClass()));
 
             m_skemaRegistrationSwitch = false;
-        }Stopwatch.GLOBAL.split("skema switch");
+        }
+        Stopwatch.GLOBAL.split("skema switch");
 
         if (m_serializeKey) // Serialize
             key = Skema.serialize(p_key);
@@ -423,6 +424,16 @@ public class HashMap<K, V> {
 
             }
 
+            if (result.m_error) { // handle error
+
+                m_lock.writeLock().unlock();
+
+                log.error("Could not put key into HashMap\nKey = " + Arrays.toString(key));
+
+                return false;
+
+            }
+
             if (result.m_resized) { // handle optional resize
 
                 if (depth == MAX_DEPTH) {
@@ -443,6 +454,7 @@ public class HashMap<K, V> {
                     cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, depth));
 
                 }
+
             }
 
             if (result.m_new_bucket != ChunkID.INVALID_ID) {  // handle optional bucket split
@@ -452,19 +464,8 @@ public class HashMap<K, V> {
 
             }
 
-            if (result.m_error) { // handle error
-
-                m_lock.writeLock().unlock();
-
-                log.error("Could not put key into HashMap\nKey = " + Arrays.toString(key));
-
-                return false;
-
-            }
-
             if (result.m_success && !result.m_overwrite) // Metadata increment size
                 Metadata.incrementSize(m_writer, m_reader, m_metaDataAdr);
-
 
         } while (!result.m_success);
 
@@ -473,7 +474,7 @@ public class HashMap<K, V> {
         return true;
     }
 
-    public long allocate(final int p_size){
+    public long allocate(final int p_size) {
         return m_memory.create().create(p_size);
     }
 

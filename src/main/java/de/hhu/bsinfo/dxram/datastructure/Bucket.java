@@ -601,20 +601,6 @@ class Bucket {
         assert size >= 0;
 
         int offset = p_reader.readInt(p_address, USED_BYTES_OFFSET);
-        /*int current_entry = 1;
-        short length;
-
-        while (current_entry <= size) { // run through data
-            // skip key
-            length = p_reader.readShort(p_address, offset);
-            offset += LENGTH_BYTES + length;
-
-            // skip value
-            length = p_reader.readShort(p_address, offset);
-            offset += LENGTH_BYTES + length;
-
-            current_entry++;
-        }*/
 
         // write key-value pair
         p_writer.writeShort(p_address, offset, (short) p_key.length);
@@ -629,7 +615,6 @@ class Bucket {
         int usedBytes = p_reader.readInt(p_address, USED_BYTES_OFFSET);
         usedBytes += calcStoredSize(p_key, p_value);
         p_writer.writeInt(p_address, USED_BYTES_OFFSET, usedBytes);
-
 
         p_writer.writeShort(p_address, SIZE_OFFSET, (short) (size + 1)); // update size
     }
