@@ -444,11 +444,10 @@ public class HashMap<K, V> {
 
             if (m_service.isLocal(cid)) { // bucket is local
 
-                long address = pin(cid);
-                Stopwatch.GLOBAL.split("put bef");
+                long address = m_pinning.translate(cid);
+                Stopwatch.GLOBAL.split("translate cid");
                 result = putLocal(address, cid, hash, key, value);
-                Stopwatch.GLOBAL.split("put aft");
-                m_pinning.unpinCID(cid);
+                Stopwatch.GLOBAL.split("put operation local");
 
             } else { // bucket is global
 
@@ -617,15 +616,13 @@ public class HashMap<K, V> {
      * @throws java.lang.RuntimeException
      */
     private HashMap.Result splitBucketAndPut(final long p_address, final long p_bucketCID, final byte[] p_hash, final byte p_hashFunctionId, final byte[] p_key, final byte[] p_value) {
-        long cid = allocateCID(m_memory.size().size(p_bucketCID));
-
         HashMap.Result result = new HashMap.Result();
+
+        long cid = allocateCID(m_memory.size().size(p_bucketCID));
 
         if (m_service.isLocal(cid)) { // new bucket is local
 
-            long address2 = pin(cid);
-            result = splitBucketAndPutLocalMemory(m_memory, p_address, address2, p_bucketCID, cid, p_hash, p_hashFunctionId, p_key, p_value);
-            m_memory.pinning().unpinCID(cid);
+            result = splitBucketAndPutLocalMemory(m_memory, p_address, pin(cid), p_bucketCID, cid, p_hash, p_hashFunctionId, p_key, p_value);
 
         } else { // new bucket is global
 
@@ -673,10 +670,10 @@ public class HashMap<K, V> {
      * @see de.hhu.bsinfo.dxram.datastructure.NodePool
      */
     private long allocateCID(final int p_bucketSize) {
-        long address = lockAndPin(m_nodepool_cid);
+        long address = pin(m_nodepool_cid);
         short nodeId = NodePool.getRandomNode(m_reader, address);
 
-        unlockAndUnpin(m_nodepool_cid); // TODO: lock necessary?
+        m_pinning.unpin(m_nodepool_cid);
 
         if (m_service.isLocal(nodeId))
             return m_memory.create().create(p_bucketSize);
@@ -712,7 +709,7 @@ public class HashMap<K, V> {
 
             p_memory.resize().resize(p_bucketCID, new_size);
 
-            p_address = p_memory.pinning().translate(p_bucketCID); // TODO: it could be good to migrate the chunk
+            p_address = p_memory.pinning().translate(p_bucketCID);
         }
 
         if (Bucket.contains(p_memory.rawRead(), p_address, p_key)) { // overwrite value by remove this entry and recall ths function
@@ -786,14 +783,13 @@ public class HashMap<K, V> {
     @NotNull
     @Contract("_, _ -> new")
     static PutResponse handlePutRequest(@NotNull final PutRequest p_request, final DXMem p_memory) {
+        assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_PUT_REQ;
 
-        long address = pin(p_memory, p_request.getCid());
+        long address = p_memory.pinning().translate(p_request.getCid());
         boolean isFull = Bucket.isFull(p_memory.rawRead(), address);
         short bucket_depth = Bucket.getDepth(p_memory.rawRead(), address);
 
         if (isFull && bucket_depth == p_request.getTableDepth()) { // check for resize call as fast as possible
-
-            p_memory.pinning().unpinCID(p_request.getCid());
 
             return new PutResponse(p_request, DataStructureMessageTypes.SUBSUBTYPE_RESIZE, ChunkID.INVALID_ID);
         }
@@ -801,8 +797,6 @@ public class HashMap<K, V> {
         HashMap.Result result = putGlobal(p_memory, address, isFull, bucket_depth, p_request.getTableDepth(),
                 p_request.getCid(), p_request.getHashedKey(), p_request.getKey(), p_request.getValue(),
                 p_request.getHashFunctionId());
-
-        p_memory.pinning().unpinCID(p_request.getCid());
 
         return new PutResponse(p_request, result.getSubSubType(), result.m_new_bucket);
     }
@@ -840,8 +834,6 @@ public class HashMap<K, V> {
             HashMap.Result result = splitBucketAndPutLocalMemory(p_memory, p_address, address2, p_cid, cid2, p_hash, p_hashFunctionId, p_key, p_value);
             result.m_new_bucket = cid2;
 
-            p_memory.pinning().unpinCID(cid2);
-
             return result;
 
         } else
@@ -860,9 +852,9 @@ public class HashMap<K, V> {
     @NotNull
     @Contract("_, _ -> new")
     static SignalResponse handleWriteBucketRequest(@NotNull final WriteBucketRawDataRequest p_request, @NotNull final DXMem p_memory) {
-        Bucket.initialize(p_memory.rawWrite(), pin(p_memory, p_request.getCid()), p_request.getRawData());
+        assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_WRITE_BUCKET_REQ;
 
-        p_memory.pinning().unpinCID(p_request.getCid());
+        Bucket.initialize(p_memory.rawWrite(), p_memory.pinning().translate(p_request.getCid()), p_request.getRawData());
 
         return new SignalResponse(p_request, DataStructureMessageTypes.SUBSUBTYPE_SUCCESS);
 
@@ -890,8 +882,7 @@ public class HashMap<K, V> {
 
         m_lock.readLock().lock(); // lock reentrant write lock
 
-        final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr)); // Lookup in Hashtable
-        final long cid = Hashtable.lookup(m_reader, m_hashtableAdr, index);
+        final long cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr))); // Lookup
 
         if (m_service.isLocal(cid)) { // bucket is local
 
@@ -933,11 +924,7 @@ public class HashMap<K, V> {
      * @see de.hhu.bsinfo.dxmem.DXMem
      */
     private static byte[] getFromLocalMemory(@NotNull final DXMem p_memory, final long p_cid, final byte[] p_key) {
-        byte[] value = Bucket.get(p_memory.rawRead(), pin(p_memory, p_cid), p_key);
-
-        p_memory.pinning().unpinCID(p_cid);
-
-        return value;
+        return Bucket.get(p_memory.rawRead(), p_memory.pinning().translate(p_cid), p_key);
     }
 
 
@@ -952,6 +939,8 @@ public class HashMap<K, V> {
     @NotNull
     @Contract("_, _ -> new")
     static GetResponse handleGetRequest(final GetRequest p_request, final DXMem p_memory) {
+        assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_GET_REQ;
+
         return new GetResponse(p_request, getFromLocalMemory(p_memory, p_request.getCid(), p_request.getKey()));
     }
 
@@ -975,16 +964,13 @@ public class HashMap<K, V> {
 
         m_lock.writeLock().lock(); // lock reentrant write lock
 
-        final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr));
-        final long cid = Hashtable.lookup(m_reader, m_hashtableAdr, index);
+        final long cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr))); // Lookup
 
         log.debug("Remove is : " + (m_service.isLocal(cid) ? "local" : "global") + "\n");
 
         if (m_service.isLocal(cid)) { // bucket is local
 
-            valueBytes = Bucket.remove(m_reader, m_writer, pin(cid), key);
-
-            m_memory.pinning().unpinCID(cid);
+            valueBytes = Bucket.remove(m_reader, m_writer, m_pinning.translate(cid), key);
 
         } else { // bucket is global
 
@@ -1039,16 +1025,13 @@ public class HashMap<K, V> {
 
         m_lock.writeLock().lock(); // lock reentrant write lock
 
-        final int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr)); // Lookup in Hashtable
-        final long cid = Hashtable.lookup(m_reader, m_hashtableAdr, index);
+        final long cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr))); // Lookup
 
         log.debug("Remove is : " + (m_service.isLocal(cid) ? "local" : "global") + "\n");
 
         if (m_service.isLocal(cid)) { // bucket is local
 
-            result = Bucket.remove(m_reader, m_writer, pin(cid), key, value);
-
-            m_memory.pinning().unpinCID(cid);
+            result = Bucket.remove(m_reader, m_writer, m_pinning.translate(cid), key, value);
 
         } else { // bucket is global
 
@@ -1078,15 +1061,11 @@ public class HashMap<K, V> {
     static RemoveResponse handleRemoveRequest(@NotNull final RemoveRequest p_request, @NotNull final DXMem p_memory) {
         assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_REMOVE_REQ;
 
-        byte[] value = Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), pin(p_memory, p_request.getCid()), p_request.getKey());
+        byte[] value = Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), p_memory.pinning().translate(p_request.getCid()), p_request.getKey());
         if (value == null)
             throw new NullPointerException();
 
-        RemoveResponse response = new RemoveResponse(p_request, value);
-
-        p_memory.pinning().unpinCID(p_request.getCid());
-
-        return response;
+        return new RemoveResponse(p_request, value);
     }
 
     /**
@@ -1100,14 +1079,10 @@ public class HashMap<K, V> {
     static SignalResponse handleRemoveWithKeyRequest(@NotNull final RemoveRequest p_request, @NotNull final DXMem p_memory) {
         assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_REMOVE_WITH_KEY_REQ;
 
-        boolean result = Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), pin(p_memory, p_request.getCid()), p_request.getKey(), p_request.getValue());
+        boolean result = Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), p_memory.pinning().translate(p_request.getCid()), p_request.getKey(), p_request.getValue());
 
-        SignalResponse response = new SignalResponse(p_request,
+        return new SignalResponse(p_request,
                 (result ? DataStructureMessageTypes.SUBSUBTYPE_SUCCESS : DataStructureMessageTypes.SUBSUBTYPE_ERROR));
-
-        p_memory.pinning().unpinCID(p_request.getCid());
-
-        return response;
     }
 
 
@@ -1116,7 +1091,7 @@ public class HashMap<K, V> {
      *
      * @return the number of key-value mappings in this map.
      */
-    public synchronized long size() {
+    public synchronized long size() { // TODO: Synchronize with write lock?
         return Metadata.getHashMapSize(m_reader, m_metaDataAdr);
     }
 
@@ -1125,7 +1100,7 @@ public class HashMap<K, V> {
      *
      * @return true if this map contains no key-value mappings
      */
-    public synchronized boolean isEmpty() {
+    public synchronized boolean isEmpty() { // TODO: Synchronize with write lock?
         return Metadata.getHashMapSize(m_reader, m_metaDataAdr) == 0;
     }
 
@@ -1187,7 +1162,10 @@ public class HashMap<K, V> {
 
             if (m_service.isLocal(nodeId)) { // local remove
 
-                grouped_cids.get(nodeId).forEach((cid) -> m_memory.remove().remove(cid, false));
+                grouped_cids.get(nodeId).forEach((cid) -> {
+                    m_pinning.unpinCID(cid);
+                    m_memory.remove().remove(cid, false)
+                });
 
             } else { // global remove
 
@@ -1215,6 +1193,7 @@ public class HashMap<K, V> {
      */
     private static void clearAllBucketsFromLocalMemory(final DXMem p_memory, @NotNull final long[] p_arr) {
         for (long cid : p_arr) {
+            p_memory.pinning().unpinCID(cid);
             p_memory.remove().remove(cid);
         }
     }
@@ -1228,6 +1207,8 @@ public class HashMap<K, V> {
      * @see de.hhu.bsinfo.dxmem.DXMem
      */
     static void handleClearRequest(@NotNull final ClearMessage p_message, final DXMem p_memory) {
+        assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_CLEAR_MESSAGE;
+
         clearAllBucketsFromLocalMemory(p_memory, p_message.getCids());
     }
 

@@ -171,6 +171,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
     private void handleAllocateRequest(final AllocateChunkRequest p_request) {
         LOGGER.warn(p_request.toString());
         long cid = m_chunk.getMemory().create().create(p_request.getInitialBucketSize());
+        m_chunk.getMemory().pinning().pin(cid);
         sendResponse(new AllocateChunkResponse(p_request, cid));
     }
 
