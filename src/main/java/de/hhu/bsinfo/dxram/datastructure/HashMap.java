@@ -410,6 +410,7 @@ public class HashMap<K, V> {
         assert p_key != null && p_value != null;
         byte[] key, value;
         HashMap.Result result;
+        short depth;
 
         if (m_skemaRegistrationSwitch) { // Skema registration
             if (p_key.getClass() == byte[].class)
@@ -436,8 +437,8 @@ public class HashMap<K, V> {
         Stopwatch.GLOBAL.split("hash");
         m_lock.writeLock().lock(); // reentrant write lock
         Stopwatch.GLOBAL.split("lock");
-        int index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr));
-        long cid = Hashtable.lookup(m_reader, m_hashtableAdr, index); // Lookup in Hashtable
+        depth = Hashtable.getDepth(m_reader, m_hashtableAdr);
+        long cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, depth)); // Lookup in Hashtable
         Stopwatch.GLOBAL.split("lookup");
         do {
 
@@ -451,7 +452,7 @@ public class HashMap<K, V> {
 
             } else { // bucket is global
 
-                PutRequest request = new PutRequest(ChunkID.getCreatorID(cid), key, value, Hashtable.getDepth(m_reader, m_hashtableAdr), cid, m_hashFunctionId);
+                PutRequest request = new PutRequest(ChunkID.getCreatorID(cid), key, value, depth, cid, m_hashFunctionId);
                 PutResponse response = (PutResponse) m_service.sendSync(request, -1);
                 result = consumePutResponse(response);
 
@@ -462,8 +463,6 @@ public class HashMap<K, V> {
 
             if (result.m_resized) { // handle optional resize
 
-                short depth = Hashtable.getDepth(m_reader, m_hashtableAdr);
-
                 if (depth == MAX_DEPTH) {
 
                     m_lock.writeLock().unlock();
@@ -472,13 +471,14 @@ public class HashMap<K, V> {
 
                     return false;
 
-                } else if (m_memory.stats().getHeapStatus().getTotalSizeBytes() < ((long) Math.pow(2, depth + 1) * Long.BYTES + 2))
-                    throw new MemoryRuntimeException("Total Bytes: " + m_memory.stats().getHeapStatus().getTotalSizeBytes() + " But want to allocate more");
-                else {
+                } else {
 
+                    if (m_memory.stats().getHeapStatus().getTotalSizeBytes() < ((long) Math.pow(2, depth + 1) * Long.BYTES + 2))
+                        throw new MemoryRuntimeException("Total Bytes: " + m_memory.stats().getHeapStatus().getTotalSizeBytes() + " But want to allocate more");
+
+                    depth++;
                     m_hashtableAdr = Hashtable.resize(m_reader, m_writer, m_memory.resize(), m_pinning, m_hashtableCID, m_hashtableAdr);
-                    index = ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr));
-                    cid = Hashtable.lookup(m_reader, m_hashtableAdr, index);
+                    cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, depth));
 
                 }
             }
