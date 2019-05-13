@@ -204,6 +204,7 @@ public class BucketStructuredTest extends StructuredTest {
 
         //Bucket.splitBucket(m_reader, m_writer, m_address, m_address_2, (byte) 1);
         Bucket.RawData raw = Bucket.splitBucket(m_reader, m_writer, m_address, (byte) 1);
+        raw.finish();
 
         // Visualize
         System.out.println(Bucket.toString(m_size, m_reader, m_cid, m_address));

@@ -70,6 +70,7 @@ class Bucket {
         private short m_size;
         private short m_depth;
         private int m_dataBytes;
+        private byte[] m_rawBucket;
 
         /**
          * Returns the raw data as byte array.
@@ -77,8 +78,12 @@ class Bucket {
          * @return the raw data as byte array.
          */
         byte[] getByteArray() {
+            return m_rawBucket;
+        }
+
+        void finish(){
             appendHeader();
-            return m_byteStream.toByteArray();
+            m_rawBucket = m_byteStream.toByteArray();
         }
 
         /**
@@ -197,10 +202,10 @@ class Bucket {
          * @see de.hhu.bsinfo.dxmem.operations.RawWrite
          */
         private static void initialize(final RawWrite p_writer, final long p_address, final byte[] p_rawDataBytes) {
-            p_writer.writeInt(p_address, USED_BYTES_OFFSET, p_rawDataBytes.length - RawData.HEADER_BYTES + DATA_OFFSET);
+            p_writer.writeInt(p_address, USED_BYTES_OFFSET, DATA_OFFSET + p_rawDataBytes.length - RawData.HEADER_BYTES);
             p_writer.writeShort(p_address, DEPTH_OFFSET, extractDepth(p_rawDataBytes));
             p_writer.writeShort(p_address, SIZE_OFFSET, extractSize(p_rawDataBytes));
-            p_writer.write(p_address, DATA_OFFSET, p_rawDataBytes, 0, p_rawDataBytes.length - HEADER_BYTES);
+            p_writer.write(p_address, DATA_OFFSET, p_rawDataBytes, 0, p_rawDataBytes.length - RawData.HEADER_BYTES);
         }
 
         /**
@@ -314,14 +319,16 @@ class Bucket {
             // read key
             short length = p_reader.readShort(p_address, right_offset);
             right_offset += LENGTH_BYTES;
-            byte[] stored_key = new byte[length];
-            p_reader.read(p_address, right_offset, stored_key);
-            right_offset += length;
+            if(length == p_key.length) {
 
-            if (Arrays.equals(stored_key, p_key)) // compare keys
-                return true;
+                byte[] stored_key = new byte[length];
+                p_reader.read(p_address, right_offset, stored_key);
 
-            right_offset += LENGTH_BYTES + p_reader.readShort(p_address, right_offset); // skip value
+                if (Arrays.equals(stored_key, p_key)) // compare keys
+                    return true;
+            }
+
+            right_offset += length + LENGTH_BYTES + p_reader.readShort(p_address, right_offset); // skip value
 
             current_entry++;
         }

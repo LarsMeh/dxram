@@ -16,7 +16,6 @@ import de.hhu.bsinfo.dxram.net.NetworkComponent;
 import de.hhu.bsinfo.dxutils.dependency.Dependency;
 
 import java.io.File;
-import java.security.InvalidParameterException;
 
 /**
  * This class represents the data structure service for dxram. It should be used to create instances of a data structure and remove them without damage the system.
@@ -226,7 +225,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     private void handlePutRequest(final PutRequest p_request) {
-        LOGGER.warn(p_request.toString());
+        //LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handlePutRequest(p_request, m_chunk.getMemory()));
     }
 
@@ -237,7 +236,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     private void handleWriteBucketRequest(final WriteBucketRawDataRequest p_request) {
-        LOGGER.warn(p_request.toString());
+        //LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handleWriteBucketRequest(p_request, m_chunk.getMemory()));
     }
 
@@ -248,7 +247,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     private void handleAllocateRequest(final AllocateChunkRequest p_request) {
-        LOGGER.warn(p_request.toString());
+        //LOGGER.warn(p_request.toString());
         long cid = m_chunk.getMemory().create().create(p_request.getInitialBucketSize());
         m_chunk.getMemory().pinning().pin(cid);
         sendResponse(new AllocateChunkResponse(p_request, cid));
@@ -260,7 +259,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @param p_request for an operation on this peer.
      */
     private void handleRemoveRequest(final RemoveRequest p_request) {
-        LOGGER.warn(p_request.toString());
+        //LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handleRemoveRequest(p_request, m_chunk.getMemory()));
     }
 
@@ -271,7 +270,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     private void handleRemoveWithKeyRequest(final RemoveRequest p_request) {
-        LOGGER.warn(p_request.toString());
+        //LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handleRemoveWithKeyRequest(p_request, m_chunk.getMemory()));
     }
 
@@ -282,7 +281,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     private void handleGetRequest(final GetRequest p_request) {
-        LOGGER.warn(p_request.toString());
+        //LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handleGetRequest(p_request, m_chunk.getMemory()));
     }
 
@@ -293,7 +292,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     private void handleClearMessage(final ClearMessage p_message) {
-        LOGGER.warn(p_message.toString());
+        //LOGGER.warn(p_message.toString());
         HashMap.handleClearRequest(p_message, m_chunk.getMemory());
     }
 
@@ -303,7 +302,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @param p_request request for a memory information
      */
     private void handleMemoryInformationRequest(final MemoryInformationRequest p_request) {
-        LOGGER.warn(p_request.toString());
+        //LOGGER.warn(p_request.toString());
         sendResponse(HashMap.handleMemoryInformationRequest(p_request, m_chunk.getMemory()));
     }
 

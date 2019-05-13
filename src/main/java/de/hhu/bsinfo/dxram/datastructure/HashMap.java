@@ -57,14 +57,16 @@ public class HashMap<K, V> {
     private static final short BUCKET_INITIAL_DEPTH;
     private static final short SKEMA_DEFAULT_ID;
     private static final short MAX_DEPTH;
+    private static final boolean OVERWRITE;
 
     static {
         HASH_TABLE_DEPTH_LIMIT = 31;
-        BUCKET_ENTRIES_EXP = 8;
+        BUCKET_ENTRIES_EXP = 6;
         BUCKET_ENTRIES = (int) Math.pow(2, BUCKET_ENTRIES_EXP);
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;
         MAX_DEPTH = 27;
+        OVERWRITE = false;
         Skema.enableAutoRegistration();
     }
 
@@ -389,7 +391,7 @@ public class HashMap<K, V> {
 
             m_skemaRegistrationSwitch = false;
         }
-        Stopwatch.GLOBAL.split("skema switch");
+
 
         if (m_serializeKey) // Serialize
             key = Skema.serialize(p_key);
@@ -400,23 +402,21 @@ public class HashMap<K, V> {
             value = Skema.serialize(p_value);
         else
             value = (byte[]) p_value;
-        Stopwatch.GLOBAL.split("Serialize");
+
         final byte[] hash = HashFunctions.hash(m_hashFunctionId, key);
-        Stopwatch.GLOBAL.split("hash");
+
         m_lock.writeLock().lock(); // reentrant write lock
-        Stopwatch.GLOBAL.split("lock");
+
         depth = Hashtable.getDepth(m_reader, m_hashtableAdr);
         int index = ExtendibleHashing.extendibleHashing(hash, depth);
         long cid = Hashtable.lookup(m_reader, m_hashtableAdr, index); // Lookup in Hashtable
-        Stopwatch.GLOBAL.split("lookup");
+
         do {
 
             if (m_service.isLocal(cid)) { // bucket is local
 
                 long address = m_pinning.translate(cid);
-                Stopwatch.GLOBAL.split("translate cid");
                 result = putLocal(address, cid, hash, key, value);
-                Stopwatch.GLOBAL.split("put operation local");
 
             } else { // bucket is global
 
@@ -617,6 +617,7 @@ public class HashMap<K, V> {
                 }
             }
 
+            rawData.finish();
             if (rawData.getByteArray() == null)
                 throw new NullPointerException();
 
@@ -680,14 +681,17 @@ public class HashMap<K, V> {
             p_address = p_memory.pinning().translate(p_bucketCID);
         }
 
-        if (Bucket.contains(p_memory.rawRead(), p_address, p_key)) { // overwrite value by remove this entry and recall ths function
+        if (OVERWRITE) {
 
-            result.m_overwrite = true;
-            Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), p_address, p_key);
+            if (Bucket.contains(p_memory.rawRead(), p_address, p_key)) { // overwrite value by remove this entry and recall ths function
 
-            if (!savePut(p_memory, p_address, p_bucketCID, p_key, p_value).m_success) // should never be false (m_success)
-                throw new RuntimeException();
+                result.m_overwrite = true;
+                Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), p_address, p_key);
 
+                if (!savePut(p_memory, p_address, p_bucketCID, p_key, p_value).m_success) // should never be false (m_success)
+                    throw new RuntimeException();
+
+            }
         }
 
         Bucket.put(p_memory.rawRead(), p_memory.rawWrite(), p_address, p_key, p_value);
@@ -801,7 +805,6 @@ public class HashMap<K, V> {
 
             HashMap.Result result = splitBucketAndPutLocalMemory(p_memory, p_address, address2, p_cid, cid2, p_hash, p_hashFunctionId, p_key, p_value);
             result.m_new_bucket = cid2;
-
             return result;
 
         } else
@@ -825,7 +828,6 @@ public class HashMap<K, V> {
         Bucket.initialize(p_memory.rawWrite(), p_memory.pinning().translate(p_request.getCid()), p_request.getRawData());
 
         return new SignalResponse(p_request, DataStructureMessageTypes.SUBSUBTYPE_SUCCESS);
-
     }
 
     /**
