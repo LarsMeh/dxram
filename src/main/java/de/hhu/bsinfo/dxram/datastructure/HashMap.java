@@ -1,5 +1,10 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
+import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.security.InvalidParameterException;
 import java.util.*;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -159,8 +164,7 @@ public class HashMap<K, V> {
     HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
             final List<Short> p_onlinePeers, final int p_numberOfNodes, final short p_keyBytes,
             final short p_valueBytes, final byte p_hashFunctionId) {
-        if (!HashMap.assertInitialParameter(p_name, p_initialCapacity, m_boot.getOnlinePeerIds(), p_numberOfNodes,
-                (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId))
+        if (!HashMap.assertInitialParameter(p_name, p_initialCapacity, p_onlinePeers, p_numberOfNodes, p_keyBytes, p_valueBytes, p_hashFunctionId))
             throw new InvalidParameterException();
 
         m_lock = new ReentrantReadWriteLock(true);
@@ -402,7 +406,8 @@ public class HashMap<K, V> {
         m_lock.writeLock().lock(); // reentrant write lock
         Stopwatch.GLOBAL.split("lock");
         depth = Hashtable.getDepth(m_reader, m_hashtableAdr);
-        long cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, depth)); // Lookup in Hashtable
+        int index = ExtendibleHashing.extendibleHashing(hash, depth);
+        long cid = Hashtable.lookup(m_reader, m_hashtableAdr, index); // Lookup in Hashtable
         Stopwatch.GLOBAL.split("lookup");
         do {
 
@@ -451,7 +456,8 @@ public class HashMap<K, V> {
 
                     depth++;
                     m_hashtableAdr = Hashtable.resize(m_reader, m_writer, m_memory.resize(), m_pinning, m_hashtableCID, m_hashtableAdr);
-                    cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, depth));
+                    index = ExtendibleHashing.extendibleHashing(hash, depth);
+                    cid = Hashtable.lookup(m_reader, m_hashtableAdr, index);
 
                 }
 
@@ -1107,7 +1113,7 @@ public class HashMap<K, V> {
     private void clearAllBuckets() {
         HashSet<Long> cids = Hashtable.bucketCIDs(m_memory.size(), m_reader, m_hashtableCID, m_hashtableAdr); // differen ChunkIDs
 
-        ava.util.HashMap<Short, ArrayList<Long>> grouped_cids = getAllGroupedChunkIDs();
+        java.util.HashMap<Short, ArrayList<Long>> grouped_cids = getAllGroupedChunkIDs();
 
         for (short nodeId : grouped_cids.keySet()) { // iterate over all NodeIDs
 
@@ -1158,7 +1164,7 @@ public class HashMap<K, V> {
      * @see de.hhu.bsinfo.dxmem.DXMem
      */
     static void handleClearRequest(@NotNull final ClearMessage p_message, final DXMem p_memory) {
-        assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_CLEAR_MESSAGE;
+        assert p_message.getSubtype() == DataStructureMessageTypes.SUBTYPE_CLEAR_MESSAGE;
 
         clearAllBucketsFromLocalMemory(p_memory, p_message.getCids());
     }
@@ -1199,23 +1205,23 @@ public class HashMap<K, V> {
 
             } else { // global
 
-                MemoryInformationResponse response = (MemoryInformationResponse) m_service.sendSsync(new MemoryInformationRequest(nodeId, group));
+                MemoryInformationResponse response = (MemoryInformationResponse) m_service.sendSync(new MemoryInformationRequest(nodeId, group), -1);
                 allocated += response.getAllocated();
                 used += response.getUsed();
 
             }
         }
 
-        metadata = numberOfBuckets * Bucket.getMetadata();
+        metadata = numberOfBuckets * Bucket.getMetadataMemSize();
 
-        try (BufferedWriter bw = new BufferedWriter(new FileWriter(m_file))) {
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(p_file))) {
 
-            bw.write("%d\n", Metadata.getSize());
-            bw.write("%d,%d,%d,%d\n", numberOfBuckets, allocated, used, metadata);
-            short depth = Hashtable.getDepth();
-            bw.write("%d,%d", depth, m_memory.size().size(m_hashtableCID));
-            bw.write("%d", m_memory.size().size(m_metaDataCID));
-            bw.write("%d", m_memory.size().size(m_nodepool_cid));
+            bw.write(String.format("%d\n", this.size()));
+            bw.write(String.format("%d,%d,%d,%d\n", numberOfBuckets, allocated, used, metadata));
+            short depth = Hashtable.getDepth(m_reader, m_hashtableAdr);
+            bw.write(String.format("%d,%d", depth, m_memory.size().size(m_hashtableCID)));
+            bw.write(String.format("%d", m_memory.size().size(m_metaDataCID)));
+            bw.write(String.format("%d", m_memory.size().size(m_nodepool_cid)));
 
         } catch (IOException p_e) {
             log.error("IOException catched while try to write memory information to " + p_file.getAbsolutePath());
@@ -1227,15 +1233,15 @@ public class HashMap<K, V> {
 
         long[] information = extractMemoryInformationFromLocalMemory(p_memory, p_request.getCids());
 
-        return new MemoryInformationRequest(information[0], information[1]);
+        return new MemoryInformationResponse(p_request, information[0], information[1]);
     }
 
-    static long[] extractMemoryInformationFromLocalMemory(final DXMem p_memory, final long[] p_chunkID) {
+    private static long[] extractMemoryInformationFromLocalMemory(final DXMem p_memory, final long[] p_chunkID) {
         long[] information = {0L, 0L};
 
-        for (int i = 0; i < p_chunkID.length; i++) {
-            information[0] += p_memory.size().size(p_chunkID[i]);
-            information[1] += Bucket.getUsedBytes(p_memory.rawRead(), p_memory.pinning().translate(p_chunkID[i]));
+        for (long cid : p_chunkID) {
+            information[0] += p_memory.size().size(cid);
+            information[1] += Bucket.getUsedBytes(p_memory.rawRead(), p_memory.pinning().translate(cid), false);
         }
 
         return information;

@@ -330,6 +330,15 @@ class Bucket {
     }
 
     /**
+     * Returns the memory size for the metadata of a bucket.
+     *
+     * @return the memory size for the metadata of a bucket.
+     */
+    static int getMetadataMemSize() {
+        return DATA_OFFSET;
+    }
+
+    /**
      * Returns the stored depth of the bucket.
      *
      * @param p_reader  DXMem reader for direct memory access

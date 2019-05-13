@@ -2,6 +2,7 @@ package de.hhu.bsinfo.dxram.datastructure.messages;
 
 import de.hhu.bsinfo.dxnet.core.AbstractMessageExporter;
 import de.hhu.bsinfo.dxnet.core.AbstractMessageImporter;
+import de.hhu.bsinfo.dxnet.core.Request;
 import de.hhu.bsinfo.dxnet.core.Response;
 import de.hhu.bsinfo.dxram.DXRAMMessageTypes;
 import de.hhu.bsinfo.dxutils.NodeID;
@@ -29,12 +30,12 @@ public class MemoryInformationResponse extends Response {
      * Constructs a MemoryInformationResponse with requested information about the allocated memory and actually used
      * memory for a lot of ChunkIDs/Buckets.
      *
-     * @param p_destination target peer.
-     * @param p_allocated   entire size which was allocated
-     * @param p_used        entire size which is actually used
+     * @param p_request   the request for this response
+     * @param p_allocated entire size which was allocated
+     * @param p_used      entire size which is actually used
      */
-    public MemoryInformationResponse(final short p_destination, final long p_allocated, final long p_used) {
-        super(p_destination, DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_MEM_INFO_REQ);
+    public MemoryInformationResponse(final MemoryInformationRequest p_request, final long p_allocated, final long p_used) {
+        super(p_request, DataStructureMessageTypes.SUBTYPE_MEM_INFO_REQ);
         m_allocated = p_allocated;
         m_used = p_used;
     }
@@ -44,7 +45,7 @@ public class MemoryInformationResponse extends Response {
      *
      * @returnthe entire allocated size.
      */
-    public long getM_allocated() {
+    public long getAllocated() {
         return m_allocated;
     }
 
@@ -53,7 +54,7 @@ public class MemoryInformationResponse extends Response {
      *
      * @return the entire size which is actually used.
      */
-    public long getM_used() {
+    public long getUsed() {
         return m_used;
     }
 

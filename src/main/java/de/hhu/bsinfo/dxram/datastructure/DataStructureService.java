@@ -15,6 +15,7 @@ import de.hhu.bsinfo.dxram.nameservice.NameserviceComponent;
 import de.hhu.bsinfo.dxram.net.NetworkComponent;
 import de.hhu.bsinfo.dxutils.dependency.Dependency;
 
+import java.io.File;
 import java.security.InvalidParameterException;
 
 /**
@@ -369,7 +370,7 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
                 case DataStructureMessageTypes.SUBTYPE_CLEAR_MESSAGE:
                     handleClearMessage((ClearMessage) p_message);
                     break;
-                case DataStructureService.SUBTYPE_MEM_INFO_REQ:
+                case DataStructureMessageTypes.SUBTYPE_MEM_INFO_REQ:
                     handleMemoryInformationRequest((MemoryInformationRequest) p_message);
                 default:
                     break;
