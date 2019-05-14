@@ -51,7 +51,7 @@ public class BucketStructuredTest extends StructuredTest {
         // Test
         for (int i = 0; i < HashMap.BUCKET_ENTRIES; i++) {
             //System.out.println("Put: " + i);
-            Bucket.put(m_reader, m_writer, m_address, Skema.serialize(i + 1), Skema.serialize(100 + i + 1));
+            Bucket.put(m_memory, m_address, Skema.serialize(i + 1), Skema.serialize(100 + i + 1));
         }
 
         //System.out.println(Bucket.toString(m_size, m_reader, m_cid, m_address));
@@ -61,15 +61,15 @@ public class BucketStructuredTest extends StructuredTest {
         Assert.assertEquals((short) 0, Bucket.getDepth(m_reader, m_address));
         Assert.assertEquals(HashMap.BUCKET_ENTRIES * 2 * (Integer.BYTES + Short.BYTES), Bucket.getUsedBytes(m_reader, m_address, true));
         Assert.assertEquals((short) HashMap.BUCKET_ENTRIES, Bucket.getSize(m_reader, m_address));
-        Assert.assertEquals(false, Bucket.isEnoughSpace(m_reader, m_size, m_cid, m_address, 145));
-        Assert.assertEquals(true, Bucket.isEnoughSpace(m_reader, m_size, m_cid, m_address, 144));
+        Assert.assertEquals(false, Bucket.isEnoughSpace(m_memory, m_cid, m_address, 145));
+        Assert.assertEquals(true, Bucket.isEnoughSpace(m_memory, m_cid, m_address, 144));
     }
 
     public void remove() {
 
         // Test
         for (int i = 0; i < HashMap.BUCKET_ENTRIES; i++) {
-            Bucket.remove(m_reader, m_writer, m_address, Skema.serialize(i + 1), Skema.serialize(100 + i + 1));
+            Bucket.remove(m_memory, m_address, Skema.serialize(i + 1), Skema.serialize(100 + i + 1));
         }
 
         //System.out.println(Bucket.toString(m_size, m_reader, m_cid, m_address));
@@ -79,7 +79,7 @@ public class BucketStructuredTest extends StructuredTest {
         Assert.assertEquals((short) 0, Bucket.getDepth(m_reader, m_address));
         Assert.assertEquals(0, Bucket.getUsedBytes(m_reader, m_address, true));
         Assert.assertEquals((short) 0, Bucket.getSize(m_reader, m_address));
-        Assert.assertEquals(true, Bucket.isEnoughSpace(m_reader, m_size, m_cid, m_address, 145));
+        Assert.assertEquals(true, Bucket.isEnoughSpace(m_memory, m_cid, m_address, 145));
 
     }
 
@@ -88,7 +88,7 @@ public class BucketStructuredTest extends StructuredTest {
         // Test
         for (int i = 0; i < HashMap.BUCKET_ENTRIES; i++) {
             byte[] value = Skema.serialize(100 + i + 1);
-            byte[] retValue = Bucket.remove(m_reader, m_writer, m_address, Skema.serialize(i + 1));
+            byte[] retValue = Bucket.remove(m_memory, m_address, Skema.serialize(i + 1));
             Assert.assertArrayEquals(value, retValue);
         }
 
@@ -99,7 +99,7 @@ public class BucketStructuredTest extends StructuredTest {
         Assert.assertEquals((short) 0, Bucket.getDepth(m_reader, m_address));
         Assert.assertEquals(0, Bucket.getUsedBytes(m_reader, m_address, true));
         Assert.assertEquals((short) 0, Bucket.getSize(m_reader, m_address));
-        Assert.assertEquals(true, Bucket.isEnoughSpace(m_reader, m_size, m_cid, m_address, 145));
+        Assert.assertEquals(true, Bucket.isEnoughSpace(m_memory, m_cid, m_address, 145));
 
     }
 
@@ -109,7 +109,7 @@ public class BucketStructuredTest extends StructuredTest {
         for (int i = 0; i < HashMap.BUCKET_ENTRIES; i++) {
             byte[] key = Skema.serialize(i + 1);
             byte[] value = Skema.serialize(100 + i + 1);
-            byte[] result = Bucket.get(m_reader, m_address, key);
+            byte[] result = Bucket.get(m_memory, m_address, key);
             Assert.assertArrayEquals(value, result);
         }
 
@@ -124,13 +124,13 @@ public class BucketStructuredTest extends StructuredTest {
 
     public void splitBucketVisualize() {
 
-        System.out.println(Bucket.toString(m_size, m_reader, m_cid, m_address));
+        System.out.println(Bucket.toString(m_memory, m_cid, m_address));
 
-        Bucket.splitBucket(m_reader, m_writer, m_address, m_address_2, (byte) 1);
+        Bucket.splitBucket(m_memory, m_address, m_address_2, (byte) 1);
 
         // Visualize
-        System.out.println(Bucket.toString(m_size, m_reader, m_cid, m_address));
-        System.out.println(Bucket.toString(m_size, m_reader, m_cid_2, m_address_2));
+        System.out.println(Bucket.toString(m_memory, m_cid, m_address));
+        System.out.println(Bucket.toString(m_memory, m_cid_2, m_address_2));
     }
 
     public void sizeForFit(final int p_expect, final int p_input) {
@@ -144,45 +144,45 @@ public class BucketStructuredTest extends StructuredTest {
         byte[] firstKey = Skema.serialize("ABC");
         byte[] firstValue = Skema.serialize("VALUE ZU abc");
 
-        Bucket.put(m_reader, m_writer, m_address, firstKey, firstValue);
+        Bucket.put(m_memory, m_address, firstKey, firstValue);
 
         Assert.assertEquals(Bucket.calcStoredSize(firstKey, firstValue), Bucket.getUsedBytes(m_reader, m_address, true));
 
-        Bucket.put(m_reader, m_writer, m_address, Skema.serialize("DEFG"), Skema.serialize("VALUE ZU defg"));
-        Bucket.put(m_reader, m_writer, m_address, Skema.serialize("HIJKL"), Skema.serialize("VALUE ZU Hijkl"));
-        Bucket.put(m_reader, m_writer, m_address, Skema.serialize("MN"), Skema.serialize("VALUE ZU mN"));
+        Bucket.put(m_memory, m_address, Skema.serialize("DEFG"), Skema.serialize("VALUE ZU defg"));
+        Bucket.put(m_memory, m_address, Skema.serialize("HIJKL"), Skema.serialize("VALUE ZU Hijkl"));
+        Bucket.put(m_memory, m_address, Skema.serialize("MN"), Skema.serialize("VALUE ZU mN"));
     }
 
     public void getNonPrimitive() {
 
-        Assert.assertArrayEquals(Skema.serialize("VALUE ZU abc"), Bucket.get(m_reader, m_address, Skema.serialize("ABC")));
-        Assert.assertArrayEquals(Skema.serialize("VALUE ZU defg"), Bucket.get(m_reader, m_address, Skema.serialize("DEFG")));
-        Assert.assertArrayEquals(Skema.serialize("VALUE ZU Hijkl"), Bucket.get(m_reader, m_address, Skema.serialize("HIJKL")));
-        Assert.assertArrayEquals(Skema.serialize("VALUE ZU mN"), Bucket.get(m_reader, m_address, Skema.serialize("MN")));
+        Assert.assertArrayEquals(Skema.serialize("VALUE ZU abc"), Bucket.get(m_memory, m_address, Skema.serialize("ABC")));
+        Assert.assertArrayEquals(Skema.serialize("VALUE ZU defg"), Bucket.get(m_memory, m_address, Skema.serialize("DEFG")));
+        Assert.assertArrayEquals(Skema.serialize("VALUE ZU Hijkl"), Bucket.get(m_memory, m_address, Skema.serialize("HIJKL")));
+        Assert.assertArrayEquals(Skema.serialize("VALUE ZU mN"), Bucket.get(m_memory, m_address, Skema.serialize("MN")));
     }
 
     public void removeNonPrimitive() {
         byte[] ret;
-        ret = Bucket.remove(m_reader, m_writer, m_address, Skema.serialize("ABC"));
+        ret = Bucket.remove(m_memory, m_address, Skema.serialize("ABC"));
         Assert.assertArrayEquals(Skema.serialize("VALUE ZU abc"), ret);
 
-        ret = Bucket.remove(m_reader, m_writer, m_address, Skema.serialize("DEFG"));
+        ret = Bucket.remove(m_memory, m_address, Skema.serialize("DEFG"));
         Assert.assertArrayEquals(Skema.serialize("VALUE ZU defg"), ret);
 
         boolean res;
-        res = Bucket.remove(m_reader, m_writer, m_address, Skema.serialize("HIJKL"), Skema.serialize("VALUE ZU Hijkl"));
+        res = Bucket.remove(m_memory, m_address, Skema.serialize("HIJKL"), Skema.serialize("VALUE ZU Hijkl"));
         Assert.assertEquals(true, res);
-        res = Bucket.remove(m_reader, m_writer, m_address, Skema.serialize("MN"), Skema.serialize("VALUE ZU mN"));
+        res = Bucket.remove(m_memory, m_address, Skema.serialize("MN"), Skema.serialize("VALUE ZU mN"));
         Assert.assertEquals(true, res);
     }
 
     public void contains() {
         boolean result;
 
-        result = Bucket.contains(m_reader, m_address, Skema.serialize(1));
+        result = Bucket.contains(m_memory, m_address, Skema.serialize(1));
         Assert.assertEquals(true, result);
 
-        result = Bucket.contains(m_reader, m_address, Skema.serialize(0));
+        result = Bucket.contains(m_memory, m_address, Skema.serialize(0));
         Assert.assertEquals(false, result);
 
     }
@@ -190,32 +190,32 @@ public class BucketStructuredTest extends StructuredTest {
     public void containsNonPrimitive() {
         boolean result;
 
-        result = Bucket.contains(m_reader, m_address, Skema.serialize("ABC"));
+        result = Bucket.contains(m_memory, m_address, Skema.serialize("ABC"));
         Assert.assertEquals(true, result);
 
-        result = Bucket.contains(m_reader, m_address, Skema.serialize("ZAH"));
+        result = Bucket.contains(m_memory, m_address, Skema.serialize("ZAH"));
         Assert.assertEquals(false, result);
 
     }
 
     public void splitBucketVisualize2() {
 
-        System.out.println(Bucket.toString(m_size, m_reader, m_cid, m_address));
+        System.out.println(Bucket.toString(m_memory, m_cid, m_address));
 
         //Bucket.splitBucket(m_reader, m_writer, m_address, m_address_2, (byte) 1);
-        Bucket.RawData raw = Bucket.splitBucket(m_reader, m_writer, m_address, (byte) 1);
+        Bucket.RawData raw = Bucket.splitBucket(m_memory, m_address, (byte) 1);
         raw.finish();
 
         // Visualize
-        System.out.println(Bucket.toString(m_size, m_reader, m_cid, m_address));
+        System.out.println(Bucket.toString(m_memory, m_cid, m_address));
         byte[] arr = raw.getByteArray();
         System.out.println("Raw as Byte Array" + Arrays.toString(arr) + "\nWith length = " + arr.length);
         System.out.println("Data bytes = " + raw.getDataBytes());
     }
 
-    public void visualize(){
+    public void visualize() {
 
-        System.out.println(Bucket.toString(m_size, m_reader, m_cid, m_address));
+        System.out.println(Bucket.toString(m_memory, m_cid, m_address));
     }
 
 }

@@ -143,16 +143,8 @@ public class HashMapGlobalTest {
 
         HashMap<Integer, Integer> map = service.createHashMap(m_id, 1000, m_nodes, 4, 4, HashFunctions.MURMUR3_32, true);
 
-        //Stopwatch watch = Stopwatch.GLOBAL;
-        //watch.start();
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 10000; i++) {
             map.put(i, i + 1);
-            //System.out.println(watch.history());
-            //System.out.println("----------------------------------------");
-            //watch.reset();
         }
-        //watch.stop();
-        //System.out.println(watch.history());
-
     }
 }

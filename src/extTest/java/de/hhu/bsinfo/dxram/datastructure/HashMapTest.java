@@ -32,7 +32,6 @@ public class HashMapTest {
 
         HashMap<String, String> map = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1, false);
 
-
     }
 
     @TestInstance(runOnNodeIdx = 1)
@@ -40,7 +39,7 @@ public class HashMapTest {
 
         DataStructureService service = p_instance.getService(DataStructureService.class);
 
-        HashMap<String, String> map = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1,false);
+        HashMap<String, String> map = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1, false);
 
         map.put("ABCD", "EFGHIJ"); // String
 
@@ -90,12 +89,11 @@ public class HashMapTest {
 
         HashMap<String, String> map = service.createHashMap(m_id, m_capac, m_nodes, 1, 1, (byte) 1, false);
 
-        map.put("ABCD", "EFGHIJ");
+        //map.put("ABCD", "EFGHIJ");
         map.put("ABCD", "CDEFH");
-        map.put("BCD", "CDEFH");
+        //map.put("BCD", "CDEFH");
         map.put("AD", "CDEFH");
         map.put("ACD", "CDEFH");
-        map.put("ABCD", "CDEFH");
         map.put("BCD", "CDEFH");
         map.put("A", "CDEFH");
         map.put("D", "CDEFH");

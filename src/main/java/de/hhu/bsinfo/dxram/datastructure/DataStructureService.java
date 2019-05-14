@@ -16,6 +16,7 @@ import de.hhu.bsinfo.dxram.net.NetworkComponent;
 import de.hhu.bsinfo.dxutils.dependency.Dependency;
 
 import java.io.File;
+import java.io.IOException;
 
 /**
  * This class represents the data structure service for dxram. It should be used to create instances of a data structure and remove them without damage the system.
@@ -151,8 +152,12 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @param p_file    File where the memory information will write to
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap#extractMemoryInformation
      */
-    public void extractMemoryInformation(final HashMap p_hashMap, final File p_file) {
-        if (p_file.exists()) {
+    public void extractMemoryInformation(final HashMap p_hashMap, final File p_file) throws IOException {
+        if (p_file.exists())
+            LOGGER.warn("File " + p_file.getAbsolutePath() + " exists");
+        else {
+
+            p_file.createNewFile();
             p_hashMap.extractMemoryInformation(p_file);
         }
     }
