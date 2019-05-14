@@ -92,6 +92,7 @@ public class HashMap<K, V> {
     private boolean m_skemaRegistrationSwitch; // TODO: Put into metadata
     private boolean m_serializeKey; // TODO: Put into metadata
     private boolean m_serializeValue; // TODO: Put into metadata
+    private final boolean m_overwrite;
 
     /**
      * Constructs an empty HashMap an will distribute them on all online peers.
@@ -106,9 +107,10 @@ public class HashMap<K, V> {
      * @param p_hashFunctionId  id for the hash algorithm which should be used
      */
     HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
-            final List<Short> p_onlinePeers, final short p_keyBytes,
-            final short p_valueBytes, final byte p_hashFunctionId) {
-        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, -1, p_keyBytes, p_valueBytes, p_hashFunctionId);
+            final List<Short> p_onlinePeers, final short p_keyBytes, final short p_valueBytes, final byte p_hashFunctionId,
+            final boolean p_NoOverwrite) {
+        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, -1, p_keyBytes, p_valueBytes,
+                p_hashFunctionId, p_NoOverwrite);
     }
 
     /**
@@ -124,8 +126,10 @@ public class HashMap<K, V> {
      * @param p_valueBytes      size of a value
      */
     HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
-            final List<Short> p_onlinePeers, final int p_numberOfNodes, final short p_keyBytes, final short p_valueBytes) {
-        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, p_numberOfNodes, p_keyBytes, p_valueBytes, HashFunctions.MURMUR3_32);
+            final List<Short> p_onlinePeers, final int p_numberOfNodes, final short p_keyBytes, final short p_valueBytes,
+            final boolean p_NoOverwrite) {
+        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, p_numberOfNodes, p_keyBytes, p_valueBytes,
+                HashFunctions.MURMUR3_32, p_NoOverwrite);
     }
 
     /**
@@ -141,8 +145,9 @@ public class HashMap<K, V> {
      * @param p_valueBytes      size of a value
      */
     HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
-            final List<Short> p_onlinePeers, final short p_keyBytes, final short p_valueBytes) {
-        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, -1, p_keyBytes, p_valueBytes, HashFunctions.MURMUR3_32);
+            final List<Short> p_onlinePeers, final short p_keyBytes, final short p_valueBytes, final boolean p_NoOverwrite) {
+        this(p_memory, p_service, p_name, p_initialCapacity, p_onlinePeers, -1, p_keyBytes, p_valueBytes,
+                HashFunctions.MURMUR3_32, p_NoOverwrite);
     }
 
     /**
@@ -164,9 +169,10 @@ public class HashMap<K, V> {
      * @see de.hhu.bsinfo.dxram.datastructure.DataStructureService
      */
     HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
-            final List<Short> p_onlinePeers, final int p_numberOfNodes, final short p_keyBytes,
-            final short p_valueBytes, final byte p_hashFunctionId) {
-        if (!HashMap.assertInitialParameter(p_name, p_initialCapacity, p_onlinePeers, p_numberOfNodes, p_keyBytes, p_valueBytes, p_hashFunctionId))
+            final List<Short> p_onlinePeers, final int p_numberOfNodes, final short p_keyBytes, final short p_valueBytes,
+            final byte p_hashFunctionId, final boolean p_NoOverwrite) {
+        if (!HashMap.assertInitialParameter(p_name, p_initialCapacity, p_onlinePeers, p_numberOfNodes, p_keyBytes,
+                p_valueBytes, p_hashFunctionId))
             throw new InvalidParameterException();
 
         m_lock = new ReentrantReadWriteLock(true);
@@ -181,6 +187,7 @@ public class HashMap<K, V> {
         m_skemaRegistrationSwitch = true;
         m_serializeKey = true;
         m_serializeValue = true;
+        m_overwrite = !p_NoOverwrite;
 
         short hashtable_depth = calcTableDepth(p_initialCapacity); // calculate hashtable_depth
 
@@ -208,7 +215,7 @@ public class HashMap<K, V> {
      * @see de.hhu.bsinfo.dxram.datastructure.DataStructureService#removeHashMap(HashMap p_hashMap)
      */
     void removeThisObject() {
-        m_lock.writeLock().lock(); // lock reentrant write lock7
+        m_lock.writeLock().lock(); // lock reentrant write lock
 
         this.clear(false);
 
@@ -315,7 +322,7 @@ public class HashMap<K, V> {
      * @param p_memory access to pinning
      * @param p_cid    ChunkID which should be pinned
      * @return the matching virtual address for the ChunkID.
-     * @throws RuntimeException
+     * @throws java.lang.RuntimeException
      */
     private static long pin(@NotNull final DXMem p_memory, final long p_cid) { // TODO: pinning is ok not dxmem and throws clausel
         Pinning.PinnedMemory pinnedMemory = p_memory.pinning().pin(p_cid);
@@ -416,11 +423,11 @@ public class HashMap<K, V> {
             if (m_service.isLocal(cid)) { // bucket is local
 
                 long address = m_pinning.translate(cid);
-                result = putLocal(address, cid, hash, key, value);
+                result = putLocal(address, cid, hash, key, value, m_overwrite);
 
             } else { // bucket is global
 
-                PutRequest request = new PutRequest(ChunkID.getCreatorID(cid), key, value, depth, cid, m_hashFunctionId);
+                PutRequest request = new PutRequest(ChunkID.getCreatorID(cid), key, value, depth, cid, m_hashFunctionId, m_overwrite);
                 PutResponse response = (PutResponse) m_service.sendSync(request, -1);
                 result = consumePutResponse(response);
 
@@ -538,10 +545,11 @@ public class HashMap<K, V> {
      * @return a result object based on the executed operation and its results.
      * @throws java.lang.RuntimeException
      */
-    private HashMap.Result putLocal(final long p_address, final long p_bucketCID, final byte[] p_hash, final byte[] p_key, final byte[] p_value) {
+    private HashMap.Result putLocal(final long p_address, final long p_bucketCID, final byte[] p_hash, final byte[] p_key,
+                                    final byte[] p_value, final boolean p_overwrite) {
         if (!Bucket.isFull(m_reader, p_address)) { // Bucket has space
 
-            HashMap.Result result = savePut(m_memory, p_address, p_bucketCID, p_key, p_value);
+            HashMap.Result result = savePut(m_memory, p_address, p_bucketCID, p_key, p_value, p_overwrite);
 
             if (!result.m_success)
                 log.warn("SavePut failed for key: " + Arrays.toString(p_key));
@@ -556,7 +564,7 @@ public class HashMap<K, V> {
 
             if (bucket_depth < table_depth) { // true - split bucket
 
-                return splitBucketAndPut(p_address, p_bucketCID, p_hash, m_hashFunctionId, p_key, p_value);
+                return splitBucketAndPut(p_address, p_bucketCID, p_hash, m_hashFunctionId, p_key, p_value, p_overwrite);
 
             } else if (bucket_depth == table_depth) { // false - resize Bucket
 
@@ -585,14 +593,16 @@ public class HashMap<K, V> {
      * @throws java.lang.NullPointerException
      * @throws java.lang.RuntimeException
      */
-    private HashMap.Result splitBucketAndPut(final long p_address, final long p_bucketCID, final byte[] p_hash, final byte p_hashFunctionId, final byte[] p_key, final byte[] p_value) {
+    private HashMap.Result splitBucketAndPut(final long p_address, final long p_bucketCID, final byte[] p_hash,
+                                             final byte p_hashFunctionId, final byte[] p_key, final byte[] p_value,
+                                             final boolean p_overwrite) {
         HashMap.Result result = new HashMap.Result();
 
         long cid = allocateCID(m_memory.size().size(p_bucketCID));
 
         if (m_service.isLocal(cid)) { // new bucket is local
 
-            result = splitBucketAndPutLocalMemory(m_memory, p_address, pin(cid), p_bucketCID, cid, p_hash, p_hashFunctionId, p_key, p_value);
+            result = splitBucketAndPutLocalMemory(m_memory, p_address, pin(cid), p_bucketCID, cid, p_hash, p_hashFunctionId, p_key, p_value, p_overwrite);
 
         } else { // new bucket is global
 
@@ -604,7 +614,7 @@ public class HashMap<K, V> {
             if (!ExtendibleHashing.compareBitForDepth(p_hash, Bucket.getDepth(m_reader, p_address))) {
 
                 if (!Bucket.isFull(m_reader, p_address))
-                    result = savePut(m_memory, p_address, p_bucketCID, p_key, p_value);
+                    result = savePut(m_memory, p_address, p_bucketCID, p_key, p_value, p_overwrite);
 
             } else {
 
@@ -669,7 +679,7 @@ public class HashMap<K, V> {
      * @throws java.lang.RuntimeException
      */
     private static HashMap.Result savePut(@NotNull final DXMem p_memory, long p_address, final long p_bucketCID,
-                                          final byte[] p_key, final byte[] p_value) {
+                                          final byte[] p_key, final byte[] p_value, final boolean p_overwrite) {
         HashMap.Result result = new HashMap.Result();
 
         if (!Bucket.isEnoughSpace(p_memory.rawRead(), p_memory.size(), p_bucketCID, p_address, Bucket.calcStoredSize(p_key, p_value))) { // resize Bucket and don't forget unpin, pin and update address
@@ -681,14 +691,14 @@ public class HashMap<K, V> {
             p_address = p_memory.pinning().translate(p_bucketCID);
         }
 
-        if (OVERWRITE) {
+        if (p_overwrite) {
 
             if (Bucket.contains(p_memory.rawRead(), p_address, p_key)) { // overwrite value by remove this entry and recall ths function
 
                 result.m_overwrite = true;
                 Bucket.remove(p_memory.rawRead(), p_memory.rawWrite(), p_address, p_key);
 
-                if (!savePut(p_memory, p_address, p_bucketCID, p_key, p_value).m_success) // should never be false (m_success)
+                if (!savePut(p_memory, p_address, p_bucketCID, p_key, p_value, true).m_success) // should never be false (m_success)
                     throw new RuntimeException();
 
             }
@@ -725,18 +735,19 @@ public class HashMap<K, V> {
     private static HashMap.Result splitBucketAndPutLocalMemory(@NotNull final DXMem p_memory, final long p_address, final long p_address2,
                                                                final long p_bucketCID, final long p_newBucketCID,
                                                                final byte[] p_hash, final byte p_hashFunctionId,
-                                                               final byte[] p_key, final byte[] p_value) {
+                                                               final byte[] p_key, final byte[] p_value,
+                                                               final boolean p_overwrite) {
         Bucket.splitBucket(p_memory.rawRead(), p_memory.rawWrite(), p_address, p_address2, p_hashFunctionId);
 
         if (ExtendibleHashing.compareBitForDepth(p_hash, Bucket.getDepth(p_memory.rawRead(), p_address))) { // try put, true --> new bucket else old bucket
 
             if (!Bucket.isFull(p_memory.rawRead(), p_address2))
-                return savePut(p_memory, p_address2, p_newBucketCID, p_key, p_value);
+                return savePut(p_memory, p_address2, p_newBucketCID, p_key, p_value, p_overwrite);
 
         } else {
 
             if (!Bucket.isFull(p_memory.rawRead(), p_address))
-                return savePut(p_memory, p_address, p_bucketCID, p_key, p_value);
+                return savePut(p_memory, p_address, p_bucketCID, p_key, p_value, p_overwrite);
         }
 
         return new HashMap.Result(); // As caller add the bucket cid to result
@@ -766,9 +777,7 @@ public class HashMap<K, V> {
             return new PutResponse(p_request, DataStructureMessageTypes.SUBSUBTYPE_RESIZE, ChunkID.INVALID_ID);
         }
 
-        HashMap.Result result = putGlobal(p_memory, address, isFull, bucket_depth, p_request.getTableDepth(),
-                p_request.getCid(), p_request.getHashedKey(), p_request.getKey(), p_request.getValue(),
-                p_request.getHashFunctionId());
+        HashMap.Result result = putGlobal(p_memory, p_request, address, isFull, bucket_depth);
 
         return new PutResponse(p_request, result.getSubSubType(), result.m_new_bucket);
     }
@@ -777,33 +786,28 @@ public class HashMap<K, V> {
      * Returns a result object based on the executed operation and its result. The method will decide if a normal put
      * or a bucketsplit will called.
      *
-     * @param p_memory         an instance of DXMem to get direct memory access
-     * @param p_address        wehere the bucket is stored
-     * @param p_isFull         indicates if the bucket stores the maximum number of key-value pairs
-     * @param p_depth          depth of the bucket
-     * @param p_tableDepth     depth of the Hashtable
-     * @param p_cid            ChunkID of the bucket.
-     * @param p_hash           hashed key
-     * @param p_key            key with which the specified value is to be associated
-     * @param p_value          value to be associated with the specified key
-     * @param p_hashFunctionId id for the hash algorithm which should be used
+     * @param p_memory  an instance of DXMem to get direct memory access
+     * @param p_address wehere the bucket is stored
+     * @param p_isFull  indicates if the bucket stores the maximum number of key-value pairs
+     * @param p_depth   depth of the bucket
+     * @param p_request PutRequest with holds all information
      * @return Returns a result object based on the executed operation and its result
      * @see de.hhu.bsinfo.dxmem.DXMem
      */
-    private static HashMap.Result putGlobal(final DXMem p_memory, final long p_address, final boolean p_isFull,
-                                            final short p_depth, final short p_tableDepth, final long p_cid,
-                                            final byte[] p_hash, final byte[] p_key, final byte[] p_value,
-                                            final byte p_hashFunctionId) {
+    private static HashMap.Result putGlobal(final DXMem p_memory, final PutRequest p_request, final long p_address, final boolean p_isFull,
+                                            final short p_depth) {
         if (!p_isFull) {
 
-            return savePut(p_memory, p_address, p_cid, p_key, p_value);
+            return savePut(p_memory, p_address, p_request.getCid(), p_request.getKey(), p_request.getValue(), p_request.getOverwrite());
 
-        } else if (p_depth < p_tableDepth) { // bucket split
+        } else if (p_depth < p_request.getTableDepth()) { // bucket split
 
-            long cid2 = p_memory.create().create(p_memory.size().size(p_cid));
+            long cid2 = p_memory.create().create(p_memory.size().size(p_request.getCid()));
             long address2 = pin(p_memory, cid2);
 
-            HashMap.Result result = splitBucketAndPutLocalMemory(p_memory, p_address, address2, p_cid, cid2, p_hash, p_hashFunctionId, p_key, p_value);
+            HashMap.Result result = splitBucketAndPutLocalMemory(p_memory, p_address, address2, p_request.getCid(), cid2,
+                    p_request.getHashedKey(), p_request.getHashFunctionId(), p_request.getKey(), p_request.getValue(),
+                    p_request.getOverwrite());
             result.m_new_bucket = cid2;
             return result;
 

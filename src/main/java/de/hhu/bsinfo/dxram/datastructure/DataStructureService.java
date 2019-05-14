@@ -55,15 +55,17 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @param p_hashFunctionId  indicates which hash algorithm should be used.
      * @param <K>               Generic type of the key.
      * @param <V>               Generic type of the value.
+     * @param p_NoOverwrite     Indicates if the HashMap should deactivate the overwrite function for better performance
      * @return An object of a HashMap.
      * @throws java.security.InvalidParameterException
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_numberOfNodes,
-                                              final int p_keyBytes, final int p_valueBytes, final byte p_hashFunctionId) {
+                                              final int p_keyBytes, final int p_valueBytes, final byte p_hashFunctionId,
+                                              final boolean p_NoOverwrite) {
 
         return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),
-                p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId);
+                p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId, p_NoOverwrite);
     }
 
     /**
@@ -76,15 +78,16 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @param p_hashFunctionId  indicates which hash algorithm should be used.
      * @param <K>               Generic type of the key.
      * @param <V>               Generic type of the value.
+     * @param p_NoOverwrite     Indicates if the HashMap should deactivate the overwrite function for better performance
      * @return An object of a HashMap.
      * @throws java.security.InvalidParameterException
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_keyBytes,
-                                              final int p_valueBytes, final byte p_hashFunctionId) {
+                                              final int p_valueBytes, final byte p_hashFunctionId, final boolean p_NoOverwrite) {
 
         return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),
-                (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId);
+                (short) p_keyBytes, (short) p_valueBytes, p_hashFunctionId, p_NoOverwrite);
     }
 
     /**
@@ -97,15 +100,16 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @param p_valueBytes      indicate how big is the value.
      * @param <K>               Generic type of the key.
      * @param <V>               Generic type of the value.
+     * @param p_NoOverwrite     Indicates if the HashMap should deactivate the overwrite function for better performance
      * @return An object of a HashMap.
      * @throws java.security.InvalidParameterException
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_numberOfNodes,
-                                              final int p_keyBytes, final int p_valueBytes) {
+                                              final int p_keyBytes, final int p_valueBytes, final boolean p_NoOverwrite) {
 
         return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),
-                p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes);
+                p_numberOfNodes, (short) p_keyBytes, (short) p_valueBytes, p_NoOverwrite);
     }
 
     /**
@@ -117,15 +121,16 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
      * @param p_valueBytes      indicate how big is the value.
      * @param <K>               Generic type of the key.
      * @param <V>               Generic type of the value.
+     * @param p_NoOverwrite     Indicates if the HashMap should deactivate the overwrite function for better performance
      * @return An object of a HashMap.
      * @throws java.security.InvalidParameterException
      * @see de.hhu.bsinfo.dxram.datastructure.HashMap
      */
     public <K, V> HashMap<K, V> createHashMap(final String p_name, final int p_initialCapacity, final int p_keyBytes,
-                                              final int p_valueBytes) {
+                                              final int p_valueBytes, final boolean p_NoOverwrite) {
 
         return new HashMap<K, V>(m_chunk.getMemory(), this, p_name, p_initialCapacity, m_boot.getOnlinePeerIds(),
-                (short) p_keyBytes, (short) p_valueBytes);
+                (short) p_keyBytes, (short) p_valueBytes, p_NoOverwrite);
     }
 
     /**
