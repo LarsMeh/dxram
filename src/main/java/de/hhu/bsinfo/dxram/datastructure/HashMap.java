@@ -60,7 +60,7 @@ public class HashMap<K, V> {
 
     static {
         HASH_TABLE_DEPTH_LIMIT = 31;
-        BUCKET_ENTRIES_EXP = 2;
+        BUCKET_ENTRIES_EXP = 3;
         BUCKET_ENTRIES = (int) Math.pow(2, BUCKET_ENTRIES_EXP);
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;
@@ -191,12 +191,12 @@ public class HashMap<K, V> {
 
         m_nodepool_cid = initNodePool(p_onlinePeers, p_numberOfNodes); // Init NodePool
 
-        long bucket_cid = initBucket(BUCKET_INITIAL_DEPTH, Bucket.calcIndividualBucketSize(HashMap.BUCKET_ENTRIES, p_keyBytes, p_valueBytes)); // Init Bucket
+        long bucket_cid = initBucket(BUCKET_INITIAL_DEPTH, HashMap.BUCKET_ENTRIES, p_keyBytes, p_valueBytes); // Init Bucket
 
         m_hashtableCID = initHashtable(hashtable_depth, bucket_cid); // Init Hashtable
         m_hashtableAdr = m_memory.pinning().translate(m_hashtableCID);
 
-        m_metaDataCID = initMetaData(m_nodepool_cid, m_hashtableCID, Bucket.calcIndividualBucketSize(BUCKET_ENTRIES, p_keyBytes, p_valueBytes), p_hashFunctionId); // Init Metadata
+        m_metaDataCID = initMetaData(m_nodepool_cid, m_hashtableCID, Bucket.getInitialMemorySize(BUCKET_ENTRIES, p_keyBytes, p_valueBytes), p_hashFunctionId); // Init Metadata
         m_metaDataAdr = m_memory.pinning().translate(m_metaDataCID);
 
         m_service.registerDataStructure(m_metaDataCID, p_name); // Register Metadata
@@ -250,12 +250,14 @@ public class HashMap<K, V> {
      * Initializes the memory layout {@link de.hhu.bsinfo.dxram.datastructure.Bucket} and returns the ChunkID of
      * the Bucket.
      *
-     * @param p_depth                initial depth of the bucket
-     * @param p_individualBucketSize individual size of the bucket based on the size of key and value
+     * @param p_depth      initial depth of the bucket
+     * @param p_entries    Maximum number of key-value pair which should the bucket store
+     * @param p_keyBytes   size of a key
+     * @param p_valueBytes size of a value
      * @return the ChunkID of the Bucket.
      */
-    private long initBucket(final short p_depth, final int p_individualBucketSize) {
-        int size = Bucket.getInitialMemorySize() + p_individualBucketSize;
+    private long initBucket(final short p_depth, final int p_entries, final short p_keyBytes, final short p_valueBytes) {
+        int size = Bucket.getInitialMemorySize(p_entries, p_keyBytes, p_valueBytes);
         long cid = m_memory.create().create(size);
         long address = pin(cid);
 
@@ -485,9 +487,9 @@ public class HashMap<K, V> {
         return true;
     }
 
-    public long allocate(final int p_size) {
-        return m_memory.create().create(p_size);
-    }
+//    public long allocate(final int p_size) {
+//        return m_memory.create().create(p_size);
+//    }
 
     /**
      * Returns a result object based on the sub-sub-type of the response message.
@@ -1098,8 +1100,11 @@ public class HashMap<K, V> {
 
         if (p_withInitializer) {
 
-            long bucketCID = initBucket((short) 0, Bucket.getInitialMemorySize() + Metadata.getIndividualBucketSize(m_reader, pin(m_metaDataCID))); // allocate new Bucket
+            long bucketCID = m_memory.create().create(Metadata.getIndividualBucketSize(m_reader, pin(m_metaDataCID)));
+            long address = pin(bucketCID);
             m_memory.pinning().unpinCID(m_metaDataCID);
+            Bucket.initialize(m_writer, address, (short) 0);
+
             clearHashtable(bucketCID); // set Hashtable to new Bucket CID
 
         }

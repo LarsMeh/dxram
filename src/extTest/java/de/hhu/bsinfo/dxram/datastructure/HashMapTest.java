@@ -183,16 +183,9 @@ public class HashMapTest {
 
         HashMap<Integer, Integer> map = service.createHashMap(m_id, 5000000, m_nodes, 4, 4, HashFunctions.MURMUR3_32, true);
 
-        //Stopwatch watch = Stopwatch.GLOBAL;
-        //watch.start();
         for (int i = 0; i < 5000; i++) {
             map.put(i, i + 1);
-            //System.out.println(watch.history());
-            //System.out.println("----------------------------------------");
-            //watch.reset();
         }
-        //watch.stop();
-        //System.out.println(watch.history());
 
     }
 }
