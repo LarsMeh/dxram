@@ -69,21 +69,54 @@ class Hashtable {
     }
 
     /**
-     * Initializes the Hashtable with a given depth.
+     * Returns the calculated depth for the Hashtable based on a value which represents the initial capacity of a datastructure.
+     *
+     * @param p_value the initial capacity of this HashMap.
+     * @return the calculated depth for the Hashtable
+     */
+    @Contract(pure = true)
+    private static short calcTableDepth(int p_value, final int p_maxDepth) {
+        assert p_value >= 0;
+
+        if (p_value == 0)
+            return 1;
+
+        int highestExponent = p_maxDepth + 1; // + 1 generates space
+
+        do {
+            p_value = p_value << 1;
+            highestExponent--;
+        } while (p_value > 0);
+
+        return (short) highestExponent;
+
+    }
+
+    /**
+     * Initializes the Hashtable with a given depth. It distributed evenly the values on the allocated size.
      *
      * @param p_writer  DXMem writer for direct memory access.
      * @param p_size    DXMem size-operation.
      * @param p_address where the Hashtable is stored.
      * @param p_depth   of the Hashtable.
-     * @param p_value   which will be written at every entry of this Hashtable
+     * @param p_value   which will be written to the Hashtable
      * @see de.hhu.bsinfo.dxmem.operations.Size
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
-    static void initialize(final RawWrite p_writer, final long p_address, final int p_size, final int p_depth, final long p_value) {
+    static void initialize(final RawWrite p_writer, final long p_address, final int p_size, final int p_depth, final long[] p_value) {
+        final int l = p_value.length;
+        assert assertIntitalEntries(p_depth, l) && p_size == Math.pow(2, p_depth) + DATA_OFFSET;
+
         p_writer.writeInt(p_address, DEPTH_OFFSET, p_depth);
 
-        for (int i = DATA_OFFSET; i < p_size; i += Long.BYTES) {
-            p_writer.writeLong(p_address, i, p_value);
+        int interval = (p_size - DATA_OFFSET) / l;
+
+        int offset = DATA_OFFSET;
+        for (int i = 0; i < l; i++) {
+            for (int j = 0; j < interval; i += Long.BYTES) {
+                p_writer.writeLong(p_address, offset + j, p_value[index]);
+            }
+            offset += interval;
         }
     }
 
@@ -335,4 +368,25 @@ class Hashtable {
         return builder.toString();
     }
 
+    /**
+     * Asserts if the length are correct for the initial hashtable.
+     *
+     * @param p_length Number of the initial entries
+     * @return true if the number of the intial entries could be represented as 2^x and is not bigger than 2^depth.
+     */
+    private static boolean assertIntitalEntries(final int p_depth, final int p_length) {
+        if (!Math.pow(2, p_depth) >= p_value.length)
+            return false;
+
+        while ((p_length & 0x1) == 0) {
+            p_length >>= 1;
+        }
+
+        p_length >>= 1;
+
+        if (p_length > 0)
+            return false;
+
+        return true;
+    }
 }

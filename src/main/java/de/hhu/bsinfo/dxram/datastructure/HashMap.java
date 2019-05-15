@@ -53,6 +53,7 @@ public class HashMap<K, V> {
 
     private static final int BUCKET_ENTRIES_EXP;
     private static final int HASH_TABLE_DEPTH_LIMIT;
+    private static final int HASH_TABLE_MAX_INITAL_DEPTH;
     static final int BUCKET_ENTRIES;
     private static final short BUCKET_INITIAL_DEPTH;
     private static final short SKEMA_DEFAULT_ID;
@@ -65,6 +66,7 @@ public class HashMap<K, V> {
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;
         MAX_DEPTH = 27;
+        HASH_TABLE_MAX_INITAL_DEPTH = 16;
         Skema.enableAutoRegistration();
     }
 
@@ -83,7 +85,7 @@ public class HashMap<K, V> {
     private final long m_hashtableCID; // should be recovered
     private long m_hashtableAdr; // should be recovered
 
-    private final long m_nodepool_cid; // should be recovered
+    private final long m_nodepoolCID; // should be recovered
 
     private final byte m_hashFunctionId; // should be recovered
 
@@ -187,13 +189,24 @@ public class HashMap<K, V> {
         m_serializeValue = true;
         m_overwrite = !p_NoOverwrite;
 
-        short hashtable_depth = calcTableDepth(p_initialCapacity); // calculate hashtable_depth
-
         m_nodepool_cid = initNodePool(p_onlinePeers, p_numberOfNodes); // Init NodePool
 
-        long bucket_cid = initBucket(BUCKET_INITIAL_DEPTH, HashMap.BUCKET_ENTRIES, p_keyBytes, p_valueBytes); // Init Bucket
+        // TODO: Minium initial size ?
+        int initialBuckets;
+        short hashtable_depth = calcTableDepth(p_initialCapacity, HASH_TABLE_DEPTH_LIMIT);
 
-        m_hashtableCID = initHashtable(hashtable_depth, bucket_cid); // Init Hashtable
+        if (hashtable_depth - BUCKET_ENTRIES_EXP > 0) {
+
+            hashtable_depth -= -BUCKET_ENTRIES_EXP;
+            initialBuckets = hashtable_depth - HASH_TABLE_MAX_INITAL_DEPTH;
+
+            if (initialBuckets <= 0)
+                initialBuckets = 1;
+        }
+
+        long bucketCIDs = initBuckets(BUCKET_INITIAL_DEPTH, HashMap.BUCKET_ENTRIES, initialBuckets, p_keyBytes, p_valueBytes); // Init Bucket
+
+        m_hashtableCID = initHashtable(hashtable_depth, bucketCIDs); // Init Hashtable
         m_hashtableAdr = m_memory.pinning().translate(m_hashtableCID);
 
         m_metaDataCID = initMetaData(m_nodepool_cid, m_hashtableCID, Bucket.getInitialMemorySize(BUCKET_ENTRIES, p_keyBytes, p_valueBytes), p_hashFunctionId); // Init Metadata
@@ -247,23 +260,29 @@ public class HashMap<K, V> {
     }
 
     /**
-     * Initializes the memory layout {@link de.hhu.bsinfo.dxram.datastructure.Bucket} and returns the ChunkID of
-     * the Bucket.
+     * Initializes the memory layout {@link de.hhu.bsinfo.dxram.datastructure.Bucket} and returns all created ChunkIDs.
      *
      * @param p_depth      initial depth of the bucket
      * @param p_entries    Maximum number of key-value pair which should the bucket store
+     * @param p_number     Number of ChunkIDs/Buckets which should be intialized
      * @param p_keyBytes   size of a key
      * @param p_valueBytes size of a value
      * @return the ChunkID of the Bucket.
      */
-    private long initBucket(final short p_depth, final int p_entries, final short p_keyBytes, final short p_valueBytes) {
-        int size = Bucket.getInitialMemorySize(p_entries, p_keyBytes, p_valueBytes);
-        long cid = m_memory.create().create(size);
-        long address = pin(cid);
+    private long initBuckets(final short p_depth, final int p_entries, final int p_number, final short p_keyBytes, final short p_valueBytes) {
+        long[] cids = new long[p_number]
 
-        Bucket.initialize(m_writer, address, p_depth);
+        for (int i = 0; i < p_number; i++) {
+            int size = Bucket.getInitialMemorySize(p_entries, p_keyBytes, p_valueBytes);
+            long cid = m_memory.create().create(size);
+            long address = pin(cid);
 
-        return cid;
+            Bucket.initialize(m_writer, address, p_depth);
+
+            cids[i] = cid;
+        }
+
+        return cids;
     }
 
     /**
@@ -1304,32 +1323,5 @@ public class HashMap<K, V> {
                 NameserviceComponent.hasCorrectNameFormat(p_name);
     }
 
-
-    /**
-     * Returns the calculated depth for the Hashtable based on a value which represents the initial capacity
-     * of this HashMap.
-     *
-     * @param p_value the initial capacity of this HashMap.
-     * @return the calculated depth for the Hashtable
-     */
-    @Contract(pure = true)
-    private short calcTableDepth(int p_value) {
-        assert p_value >= 0;
-
-        if (p_value == 0)
-            return 1;
-
-        int highestExponent = HASH_TABLE_DEPTH_LIMIT + 1; // + 1 generates space
-
-        do {
-            p_value = p_value << 1;
-            highestExponent--;
-        } while (p_value > 0);
-
-        short diff = (short) (highestExponent - BUCKET_ENTRIES_EXP);
-
-        return diff > 0 ? diff : 1;
-
-    }
 
 }
