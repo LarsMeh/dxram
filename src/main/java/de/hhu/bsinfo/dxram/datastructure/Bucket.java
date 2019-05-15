@@ -447,7 +447,7 @@ class Bucket {
                     // save value to return later
                     length = p_memory.rawRead().readShort(p_address, offset);
                     offset += LENGTH_BYTES;
-                    byte[] stored_value = p_memory.rawRead().read(p_address, offset, length);
+                    byte[] stored_value = p_memory.rawRead().readByteArray(p_address, offset, length);
                     offset += length;
 
                     if (size - 1 > 0) // close space
@@ -575,7 +575,7 @@ class Bucket {
                     length = p_memory.rawRead().readShort(p_address, right_offset);
                     right_offset += LENGTH_BYTES;
 
-                    return p_memory.rawRead().read(p_address, right_offset, length); // return value
+                    return p_memory.rawRead().readByteArray(p_address, right_offset, length); // return value
 
                 }
             }

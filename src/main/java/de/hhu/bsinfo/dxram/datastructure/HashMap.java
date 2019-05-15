@@ -60,7 +60,7 @@ public class HashMap<K, V> {
 
     static {
         HASH_TABLE_DEPTH_LIMIT = 31;
-        BUCKET_ENTRIES_EXP = 3;
+        BUCKET_ENTRIES_EXP = 4;
         BUCKET_ENTRIES = (int) Math.pow(2, BUCKET_ENTRIES_EXP);
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;
@@ -399,7 +399,6 @@ public class HashMap<K, V> {
             m_skemaRegistrationSwitch = false;
         }
 
-
         if (m_serializeKey) // Serialize
             key = Skema.serialize(p_key);
         else
@@ -486,10 +485,6 @@ public class HashMap<K, V> {
 
         return true;
     }
-
-//    public long allocate(final int p_size) {
-//        return m_memory.create().create(p_size);
-//    }
 
     /**
      * Returns a result object based on the sub-sub-type of the response message.
@@ -707,11 +702,6 @@ public class HashMap<K, V> {
         Bucket.put(p_memory, p_address, p_key, p_value);
 
         result.m_success = true;
-
-
-//        log.debug("Save Put -->\nBucket after put the key = " + Arrays.toString(p_key) + "\nand value = "
-//                + Arrays.toString(p_value) + "\n" +
-//                Bucket.toString(p_memory.size(), p_memory.rawRead(), p_bucketCID, p_address) + "\n");
 
         return result;
     }
@@ -940,8 +930,6 @@ public class HashMap<K, V> {
 
         final long cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr))); // Lookup
 
-        log.debug("Remove is : " + (m_service.isLocal(cid) ? "local" : "global") + "\n");
-
         if (m_service.isLocal(cid)) { // bucket is local
 
             valueBytes = Bucket.remove(m_memory, m_pinning.translate(cid), key);
@@ -1000,8 +988,6 @@ public class HashMap<K, V> {
         m_lock.writeLock().lock(); // lock reentrant write lock
 
         final long cid = Hashtable.lookup(m_reader, m_hashtableAdr, ExtendibleHashing.extendibleHashing(hash, Hashtable.getDepth(m_reader, m_hashtableAdr))); // Lookup
-
-        log.debug("Remove is : " + (m_service.isLocal(cid) ? "local" : "global") + "\n");
 
         if (m_service.isLocal(cid)) { // bucket is local
 
@@ -1120,8 +1106,6 @@ public class HashMap<K, V> {
      * {@link #handleGetRequest(GetRequest, DXMem)} will remove the ChunkIDs from the messages.
      */
     private void clearAllBuckets() {
-        HashSet<Long> cids = Hashtable.bucketCIDs(m_memory.size(), m_reader, m_hashtableCID, m_hashtableAdr); // differen ChunkIDs
-
         java.util.HashMap<Short, ArrayList<Long>> grouped_cids = getAllGroupedChunkIDs();
 
         for (short nodeId : grouped_cids.keySet()) { // iterate over all NodeIDs
@@ -1163,7 +1147,6 @@ public class HashMap<K, V> {
             p_memory.remove().remove(cid);
         }
     }
-
 
     /**
      * Handles a request for removes ChunkIDs from the local memory.
@@ -1242,7 +1225,16 @@ public class HashMap<K, V> {
         }
     }
 
-    static MemoryInformationResponse handleMemoryInformationRequest(final MemoryInformationRequest p_request, final DXMem p_memory) {
+    /**
+     * Handle a MemoryInformationRequest by putting the requested information into the response and returns them.
+     *
+     * @param p_request Request which indicates a MemoryInformationRequest
+     * @param p_memory  Instance of DXMem to get direct access to the memory
+     * @return the matching response for the request.
+     */
+    @NotNull
+    @Contract("_, _ -> new")
+    static MemoryInformationResponse handleMemoryInformationRequest(@NotNull final MemoryInformationRequest p_request, final DXMem p_memory) {
         assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_MEM_INFO_REQ;
 
         long[] information = extractMemoryInformationFromLocalMemory(p_memory, p_request.getCids());
@@ -1250,7 +1242,14 @@ public class HashMap<K, V> {
         return new MemoryInformationResponse(p_request, information[0], information[1]);
     }
 
-    private static long[] extractMemoryInformationFromLocalMemory(final DXMem p_memory, final long[] p_chunkID) {
+    /**
+     * Sum up the allocated and the actually used bytes from all ChunkIDs/Buckets and returning them.
+     *
+     * @param p_memory  Instance of DXMem to get direct access to the memory
+     * @param p_chunkID Array of ChunkIDs which have the memory layout from class Bucket
+     * @return the summed up requested memory information.
+     */
+    private static long[] extractMemoryInformationFromLocalMemory(final DXMem p_memory, @NotNull final long[] p_chunkID) {
         long[] information = {0L, 0L};
 
         for (long cid : p_chunkID) {
