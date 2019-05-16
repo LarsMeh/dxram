@@ -6,11 +6,9 @@ import de.hhu.bsinfo.dxram.DXRAMJunitRunner;
 import de.hhu.bsinfo.dxram.DXRAMTestConfiguration;
 import de.hhu.bsinfo.dxram.TestInstance;
 import de.hhu.bsinfo.dxram.datastructure.util.HashFunctions;
-import de.hhu.bsinfo.dxram.datastructure.util.Stopwatch;
 import de.hhu.bsinfo.dxram.util.NodeRole;
 import org.junit.Assert;
 import org.junit.runner.RunWith;
-import org.omg.PortableInterceptor.SYSTEM_EXCEPTION;
 
 @RunWith(DXRAMJunitRunner.class)
 @DXRAMTestConfiguration(

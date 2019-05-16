@@ -12,10 +12,7 @@ import com.google.common.primitives.Longs;
 import de.hhu.bsinfo.dxmem.DXMem;
 import de.hhu.bsinfo.dxmem.core.MemoryRuntimeException;
 import de.hhu.bsinfo.dxmem.data.ChunkID;
-import de.hhu.bsinfo.dxmem.operations.Pinning;
-import de.hhu.bsinfo.dxmem.operations.RawRead;
-import de.hhu.bsinfo.dxmem.operations.RawWrite;
-import de.hhu.bsinfo.dxmem.operations.Size;
+import de.hhu.bsinfo.dxmem.operations.*;
 import de.hhu.bsinfo.dxram.datastructure.messages.*;
 import de.hhu.bsinfo.dxram.datastructure.util.*;
 import de.hhu.bsinfo.dxram.nameservice.NameserviceComponent;
@@ -53,7 +50,8 @@ public class HashMap<K, V> {
 
     private static final int BUCKET_ENTRIES_EXP;
     private static final int HASH_TABLE_DEPTH_LIMIT;
-    private static final int HASH_TABLE_MAX_INITAL_DEPTH;
+    private static final int HASH_TABLE_MAX_INITIAL_DEPTH;
+    private static final int MINIMUM_INITIAL_CAPACITY;
     static final int BUCKET_ENTRIES;
     private static final short BUCKET_INITIAL_DEPTH;
     private static final short SKEMA_DEFAULT_ID;
@@ -66,7 +64,8 @@ public class HashMap<K, V> {
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;
         MAX_DEPTH = 27;
-        HASH_TABLE_MAX_INITAL_DEPTH = 16;
+        HASH_TABLE_MAX_INITIAL_DEPTH = 20;
+        MINIMUM_INITIAL_CAPACITY = (int) Math.pow(2, BUCKET_ENTRIES_EXP + 1);
         Skema.enableAutoRegistration();
     }
 
@@ -163,12 +162,12 @@ public class HashMap<K, V> {
      * @param p_valueBytes      size of a value
      * @param p_hashFunctionId  id for the hash algorithm which should be used
      * @see de.hhu.bsinfo.dxmem
-     * @see de.hhu.bsinfo.dxmem.operations.RawWrite
-     * @see de.hhu.bsinfo.dxmem.operations.RawRead
-     * @see de.hhu.bsinfo.dxmem.operations.Pinning
-     * @see de.hhu.bsinfo.dxram.datastructure.DataStructureService
+     * @see RawWrite
+     * @see RawRead
+     * @see Pinning
+     * @see DataStructureService
      */
-    HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, final int p_initialCapacity,
+    HashMap(final DXMem p_memory, final DataStructureService p_service, final String p_name, int p_initialCapacity,
             final List<Short> p_onlinePeers, final int p_numberOfNodes, final short p_keyBytes, final short p_valueBytes,
             final byte p_hashFunctionId, final boolean p_NoOverwrite) {
         if (!HashMap.assertInitialParameter(p_name, p_initialCapacity, p_onlinePeers, p_numberOfNodes, p_keyBytes,
@@ -189,27 +188,32 @@ public class HashMap<K, V> {
         m_serializeValue = true;
         m_overwrite = !p_NoOverwrite;
 
-        m_nodepool_cid = initNodePool(p_onlinePeers, p_numberOfNodes); // Init NodePool
+        m_nodepoolCID = initNodePool(p_onlinePeers, p_numberOfNodes); // Init NodePool
 
-        // TODO: Minium initial size ?
-        int initialBuckets;
-        short hashtable_depth = calcTableDepth(p_initialCapacity, HASH_TABLE_DEPTH_LIMIT);
+        // TODO: Minimum initial size ? yes
+        if (p_initialCapacity < MINIMUM_INITIAL_CAPACITY) {
+            p_initialCapacity = MINIMUM_INITIAL_CAPACITY;
+            log.warn("Initial Capacity was set to %d", MINIMUM_INITIAL_CAPACITY);
+        }
+
+        int initialBuckets = 1;
+        short hashtable_depth = Hashtable.calcTableDepth(p_initialCapacity, HASH_TABLE_DEPTH_LIMIT);
 
         if (hashtable_depth - BUCKET_ENTRIES_EXP > 0) {
 
-            hashtable_depth -= -BUCKET_ENTRIES_EXP;
-            initialBuckets = hashtable_depth - HASH_TABLE_MAX_INITAL_DEPTH;
+            hashtable_depth -= BUCKET_ENTRIES_EXP;
+            initialBuckets = (int) Math.pow(2, hashtable_depth - HASH_TABLE_MAX_INITIAL_DEPTH);
 
             if (initialBuckets <= 0)
                 initialBuckets = 1;
         }
 
-        long bucketCIDs = initBuckets(BUCKET_INITIAL_DEPTH, HashMap.BUCKET_ENTRIES, initialBuckets, p_keyBytes, p_valueBytes); // Init Bucket
+        long[] bucketCIDs = initBuckets(BUCKET_INITIAL_DEPTH, HashMap.BUCKET_ENTRIES, initialBuckets, p_keyBytes, p_valueBytes); // Init Bucket
 
         m_hashtableCID = initHashtable(hashtable_depth, bucketCIDs); // Init Hashtable
         m_hashtableAdr = m_memory.pinning().translate(m_hashtableCID);
 
-        m_metaDataCID = initMetaData(m_nodepool_cid, m_hashtableCID, Bucket.getInitialMemorySize(BUCKET_ENTRIES, p_keyBytes, p_valueBytes), p_hashFunctionId); // Init Metadata
+        m_metaDataCID = initMetaData(m_nodepoolCID, m_hashtableCID, Bucket.getInitialMemorySize(BUCKET_ENTRIES, p_keyBytes, p_valueBytes), p_hashFunctionId); // Init Metadata
         m_metaDataAdr = m_memory.pinning().translate(m_metaDataCID);
 
         m_service.registerDataStructure(m_metaDataCID, p_name); // Register Metadata
@@ -221,17 +225,17 @@ public class HashMap<K, V> {
      * By using this method while more than one thread calls method on the same object take care that this method is not
      * called while another thread is in a locked method of this object.
      *
-     * @see de.hhu.bsinfo.dxmem.operations.Remove
-     * @see de.hhu.bsinfo.dxmem.operations.Pinning
-     * @see de.hhu.bsinfo.dxram.datastructure.DataStructureService#removeHashMap(HashMap p_hashMap)
+     * @see Remove
+     * @see Pinning
+     * @see DataStructureService#removeHashMap(HashMap p_hashMap)
      */
     void removeThisObject() {
         m_lock.writeLock().lock(); // lock reentrant write lock
 
         this.clear(false);
 
-        m_memory.pinning().unpinCID(m_nodepool_cid);
-        m_memory.remove().remove(m_nodepool_cid);
+        m_memory.pinning().unpinCID(m_nodepoolCID);
+        m_memory.remove().remove(m_nodepoolCID);
 
         m_memory.pinning().unpinCID(m_hashtableAdr);
         m_memory.remove().remove(m_hashtableCID);
@@ -269,8 +273,8 @@ public class HashMap<K, V> {
      * @param p_valueBytes size of a value
      * @return the ChunkID of the Bucket.
      */
-    private long initBuckets(final short p_depth, final int p_entries, final int p_number, final short p_keyBytes, final short p_valueBytes) {
-        long[] cids = new long[p_number]
+    private long[] initBuckets(final short p_depth, final int p_entries, final int p_number, final short p_keyBytes, final short p_valueBytes) {
+        long[] cids = new long[p_number];
 
         for (int i = 0; i < p_number; i++) {
             int size = Bucket.getInitialMemorySize(p_entries, p_keyBytes, p_valueBytes);
@@ -289,16 +293,16 @@ public class HashMap<K, V> {
      * Initializes the memory layout {@link de.hhu.bsinfo.dxram.datastructure.Hashtable} and returns the ChunkID of
      * the Hashtable.
      *
-     * @param p_depth        initial depth of the hashtable
-     * @param p_defaultEntry for the hashtable
+     * @param p_depth          initial depth of the hashtable
+     * @param p_defaultEntries Entries which will put into the hashtable
      * @return the ChunkID of the Hashtable.
      */
-    private long initHashtable(final short p_depth, final long p_defaultEntry) {
+    private long initHashtable(final short p_depth, final long[] p_defaultEntries) {
         int initialSize = Hashtable.getInitialMemorySize(p_depth);
         long cid = m_memory.create().create(initialSize);
         long address = pin(cid);
 
-        Hashtable.initialize(m_writer, address, initialSize, p_depth, p_defaultEntry);
+        Hashtable.initialize(m_writer, address, initialSize, p_depth, p_defaultEntries);
 
         return cid;
     }
@@ -480,7 +484,7 @@ public class HashMap<K, V> {
                         throw new MemoryRuntimeException("Total Bytes: " + m_memory.stats().getHeapStatus().getTotalSizeBytes() + " But want to allocate more");
 
                     depth++;
-                    m_hashtableAdr = Hashtable.resize(m_reader, m_writer, m_memory.resize(), m_pinning, m_hashtableCID, m_hashtableAdr);
+                    m_hashtableAdr = Hashtable.resize(m_memory, m_hashtableCID, m_hashtableAdr);
                     index = ExtendibleHashing.extendibleHashing(hash, depth);
                     cid = Hashtable.lookup(m_reader, m_hashtableAdr, index);
 
@@ -490,7 +494,7 @@ public class HashMap<K, V> {
 
             if (result.m_new_bucket != ChunkID.INVALID_ID) {  // handle optional bucket split
 
-                Hashtable.splitForEntry(m_reader, m_writer, m_memory.size(), m_hashtableCID, m_hashtableAdr, cid, index, result.m_new_bucket);
+                Hashtable.splitForEntry(m_memory, m_hashtableCID, m_hashtableAdr, cid, index, result.m_new_bucket);
                 cid = Hashtable.lookup(m_reader, m_hashtableAdr, index);
 
             }
@@ -665,7 +669,7 @@ public class HashMap<K, V> {
      * @see de.hhu.bsinfo.dxram.datastructure.NodePool
      */
     private long allocateCID(final int p_bucketSize) {
-        long address = m_pinning.translate(m_nodepool_cid);
+        long address = m_pinning.translate(m_nodepoolCID);
         short nodeId = NodePool.getRandomNode(m_reader, address);
 
         if (m_service.isLocal(nodeId))
@@ -1144,13 +1148,13 @@ public class HashMap<K, V> {
     }
 
     /**
-     * Clears the Hashtable by calling {@link de.hhu.bsinfo.dxram.datastructure.Hashtable#clear(Size, RawWrite, long, long, long)}.
+     * Clears the Hashtable by calling {@link de.hhu.bsinfo.dxram.datastructure.Hashtable#clear(DXMem, long, long, long)}.
      *
      * @param p_defaultEntry
-     * @see de.hhu.bsinfo.dxram.datastructure.Hashtable#clear(Size, RawWrite, long, long, long)
+     * @see de.hhu.bsinfo.dxram.datastructure.Hashtable#clear(DXMem, long, long, long)
      */
     private void clearHashtable(final long p_defaultEntry) {
-        Hashtable.clear(m_memory.size(), m_writer, m_hashtableCID, m_hashtableAdr, p_defaultEntry);
+        Hashtable.clear(m_memory, m_hashtableCID, m_hashtableAdr, p_defaultEntry);
     }
 
     /**
@@ -1232,12 +1236,12 @@ public class HashMap<K, V> {
         log.debug("Write information to file: " + p_file.getAbsolutePath());
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(p_file))) {
 
-            bw.write(String.format("%d\n", this.size()));
-            bw.write(String.format("%d,%d,%d,%d\n", numberOfBuckets, allocated, used, metadata));
+            bw.write(String.format("size,%d\n", this.size()));
+            bw.write(String.format("Buckets %d, Allocated %d, Used %d, Metadata %d\n", numberOfBuckets, allocated, used, metadata));
             short depth = Hashtable.getDepth(m_reader, m_hashtableAdr);
-            bw.write(String.format("%d,%d\n", depth, m_memory.size().size(m_hashtableCID)));
-            bw.write(String.format("%d\n", m_memory.size().size(m_metaDataCID)));
-            bw.write(String.format("%d\n", m_memory.size().size(m_nodepool_cid)));
+            bw.write(String.format("Depth %d, Hashtable MemSize %d\n", depth, m_memory.size().size(m_hashtableCID)));
+            bw.write(String.format("MetadataChunk MemSize %d\n", m_memory.size().size(m_metaDataCID)));
+            bw.write(String.format("Nodepool MemSize %d\n", m_memory.size().size(m_nodepoolCID)));
 
         } catch (IOException p_e) {
             log.error("IOException catched while try to write memory information to " + p_file.getAbsolutePath());
@@ -1285,7 +1289,7 @@ public class HashMap<K, V> {
      * @return all different ChunkIDs from the hashtable and groups them by their NodeID.
      */
     private java.util.HashMap<Short, ArrayList<Long>> getAllGroupedChunkIDs() {
-        HashSet<Long> cids = Hashtable.bucketCIDs(m_memory.size(), m_reader, m_hashtableCID, m_hashtableAdr); // differen ChunkIDs
+        HashSet<Long> cids = Hashtable.bucketCIDs(m_memory, m_hashtableCID, m_hashtableAdr); // differen ChunkIDs
 
         java.util.HashMap<Short, ArrayList<Long>> grouped_cids = new java.util.HashMap<>(cids.size());
 

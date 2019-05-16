@@ -1,7 +1,5 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
-
-import de.hhu.bsinfo.dxmem.data.ChunkID;
 import de.hhu.bsinfo.dxmem.operations.*;
 import de.hhu.bsinfo.dxutils.NodeID;
 

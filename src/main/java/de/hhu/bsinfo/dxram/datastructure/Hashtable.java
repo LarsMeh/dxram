@@ -1,9 +1,12 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
+import de.hhu.bsinfo.dxmem.DXMem;
 import de.hhu.bsinfo.dxmem.data.ChunkState;
 import de.hhu.bsinfo.dxmem.operations.*;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import org.jetbrains.annotations.Contract;
+import org.jetbrains.annotations.NotNull;
 
 import java.util.HashSet;
 
@@ -24,7 +27,7 @@ import java.util.HashSet;
  **/
 @PinnedMemory
 @NoParamCheck
-class Hashtable {
+public class Hashtable {
 
     private static final Logger log = LogManager.getFormatterLogger(Hashtable.class);
 
@@ -44,7 +47,7 @@ class Hashtable {
      * @return the depth of the Hashtable.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
-    static short getDepth(final RawRead p_reader, final long p_address) {
+    static short getDepth(@NotNull final RawRead p_reader, final long p_address) {
         return p_reader.readShort(p_address, DEPTH_OFFSET);
     }
 
@@ -54,7 +57,8 @@ class Hashtable {
      * @param p_depth of the Hashtable.
      * @return the calculated memory size for this memory layout for a given depth.
      */
-    static int getInitialMemorySize(final short p_depth) {
+    @Contract(pure = true)
+    public static int getInitialMemorySize(final short p_depth) {
         return DATA_OFFSET + calcTableSize(p_depth);
     }
 
@@ -64,6 +68,7 @@ class Hashtable {
      * @param p_depth of the Hashtable.
      * @return the calculated memory size of the Hashtable without the header fields.
      */
+    @Contract(pure = true)
     private static int calcTableSize(final short p_depth) {
         return (int) Math.pow(2, p_depth) * Long.BYTES;
     }
@@ -75,7 +80,7 @@ class Hashtable {
      * @return the calculated depth for the Hashtable
      */
     @Contract(pure = true)
-    private static short calcTableDepth(int p_value, final int p_maxDepth) {
+    static short calcTableDepth(int p_value, final int p_maxDepth) {
         assert p_value >= 0;
 
         if (p_value == 0)
@@ -103,30 +108,30 @@ class Hashtable {
      * @see de.hhu.bsinfo.dxmem.operations.Size
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      */
-    static void initialize(final RawWrite p_writer, final long p_address, final int p_size, final int p_depth, final long[] p_value) {
+    public static void initialize(@NotNull final RawWrite p_writer, final long p_address, final int p_size, final int p_depth, @NotNull final long[] p_value) {
         final int l = p_value.length;
-        assert assertIntitalEntries(p_depth, l) && p_size == Math.pow(2, p_depth) + DATA_OFFSET;
+        assert assertInitialEntries(p_depth, l) && p_size >= Math.pow(2, p_depth) + DATA_OFFSET;
 
         p_writer.writeInt(p_address, DEPTH_OFFSET, p_depth);
 
         int interval = (p_size - DATA_OFFSET) / l;
 
         int offset = DATA_OFFSET;
-        for (int i = 0; i < l; i++) {
-            for (int j = 0; j < interval; i += Long.BYTES) {
-                p_writer.writeLong(p_address, offset + j, p_value[index]);
+        for (long val : p_value) {
+
+            for (int j = 0; j < interval; j += Long.BYTES) {
+
+                p_writer.writeLong(p_address, offset + j, val);
             }
+
             offset += interval;
         }
     }
 
     /**
-     * Resizes the Hashtable by incrementing the depth which means the size will be doubled.
+     * Resize the Hashtable by incrementing the depth which means the size will be doubled.
      *
-     * @param p_reader  DXMem reader for direct memory access.
-     * @param p_writer  DXMem writer for direct memory access.
-     * @param p_resize  DXMem resize-operation.
-     * @param p_pinning DXMem pinning-operation.
+     * @param p_memory  DXMem instance to get direct access to the memory
      * @param p_cid     ChunkID of the Hashtable.
      * @param p_address where the Hashtable is stored.
      * @return the new address where the Hashtable ist stored.
@@ -135,40 +140,40 @@ class Hashtable {
      * @see de.hhu.bsinfo.dxmem.operations.Pinning
      * @see de.hhu.bsinfo.dxmem.operations.Resize
      */
-    static long resize(final RawRead p_reader, final RawWrite p_writer, final Resize p_resize, final Pinning p_pinning, final long p_cid, long p_address) {
+    static long resize(@NotNull final DXMem p_memory, final long p_cid, long p_address) {
         // increment depth
-        short depth = (short) (p_reader.readShort(p_address, DEPTH_OFFSET) + 1);
-        p_writer.writeShort(p_address, DEPTH_OFFSET, depth);
+        short depth = (short) (p_memory.rawRead().readShort(p_address, DEPTH_OFFSET) + 1);
+        p_memory.rawWrite().writeShort(p_address, DEPTH_OFFSET, depth);
 
         log.warn("Now Depth is " + depth + " Hash table will be resized from " + ((long) Math.pow(2, depth - 1) * Long.BYTES + DATA_OFFSET) + " to " + ((long) Math.pow(2, depth) * Long.BYTES + DATA_OFFSET));
+
         // resize chunk
         int newSize = (int) Math.pow(2, depth) * Long.BYTES + DATA_OFFSET;
-        p_pinning.unpin(p_cid);
-        if (p_resize.resize(p_cid, newSize) != ChunkState.OK)
+        p_memory.pinning().unpin(p_cid);
+        if (p_memory.resize().resize(p_cid, newSize) != ChunkState.OK)
             throw new RuntimeException("ChunkState for resize call on hashtable is not OK");
 
-        p_address = p_pinning.pin(p_cid).getAddress();
+        p_address = p_memory.pinning().pin(p_cid).getAddress();
 
 
         // get table sizes
         int current_size = newSize - DATA_OFFSET;
         int old_size = current_size / 2;
-        //log.warn("curent: " + current_size + " old: " + old_size);
 
 
         // set offset's
         int left_offset = DATA_OFFSET + old_size - Long.BYTES;
         int right_offset = DATA_OFFSET + current_size - Long.BYTES;
-        //og.warn("leftOffset: " + left_offset + " right Offset: " + right_offset);
 
 
         // run through old size from max offset to 0
         while (left_offset >= DATA_OFFSET) {
-            long val = p_reader.readLong(p_address, left_offset);
 
-            p_writer.writeLong(p_address, right_offset, val);
+            long val = p_memory.rawRead().readLong(p_address, left_offset);
+
+            p_memory.rawWrite().writeLong(p_address, right_offset, val);
             right_offset -= Long.BYTES;
-            p_writer.writeLong(p_address, right_offset, val);
+            p_memory.rawWrite().writeLong(p_address, right_offset, val);
 
             left_offset -= Long.BYTES;
             right_offset -= Long.BYTES;
@@ -180,32 +185,30 @@ class Hashtable {
     /**
      * This method splits the an entry range into a two pieces.
      *
-     * @param p_reader   DXMem reader for direct memory access.
-     * @param p_writer   DXMem writer for direct memory access.
-     * @param p_size     DXMem size-operation.
+     * @param p_memory   DXMem instance to get direct access to the memory
      * @param p_cid      of the Hashtable.
      * @param p_address  where the Hashtable is stored.
-     * @param p_suspect  entry which will be splitted.
-     * @param p_position where the suspect is definitly.
+     * @param p_suspect  entry which will be split.
+     * @param p_position where the suspect is definitely.
      * @param p_value    new entry.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      * @see de.hhu.bsinfo.dxmem.operations.Size
      */
-    static void splitForEntry(final RawRead p_reader, final RawWrite p_writer, final Size p_size, final long p_cid,
-                              final long p_address, final long p_suspect, final int p_position, final long p_value) {
-        int memorySize = p_size.size(p_cid);
+    public static void splitForEntry(@NotNull final DXMem p_memory, final long p_cid, final long p_address, final long p_suspect,
+                              final int p_position, final long p_value) {
+        int memorySize = p_memory.size().size(p_cid);
 
         int position = p_position * Long.BYTES; // position into position/offset for direct memory access
 
-        int left_offset = getOffsetDownwards(p_reader, p_address, p_suspect, position); // included
-        int right_offset = getOffsetUpwards(p_reader, p_address, memorySize, p_suspect, position); // excluded
+        int left_offset = getOffsetDownwards(p_memory.rawRead(), p_address, p_suspect, position); // included
+        int right_offset = getOffsetUpwards(p_memory.rawRead(), p_address, memorySize, p_suspect, position); // excluded
 
         int start = DATA_OFFSET + left_offset + ((right_offset - left_offset) / 2); // split the range and take the higher
         int end = DATA_OFFSET + right_offset;
 
         for (int i = start; i < end; i += Long.BYTES) { // write new entry to higher splitted range
-            p_writer.writeLong(p_address, i, p_value);
+            p_memory.rawWrite().writeLong(p_address, i, p_value);
         }
     }
 
@@ -274,31 +277,30 @@ class Hashtable {
      * @return the stored long (ChunkID) which is stored at the given position.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      */
-    static long lookup(final RawRead p_reader, final long p_address, final int p_position) {
+    static long lookup(@NotNull final RawRead p_reader, final long p_address, final int p_position) {
         return p_reader.readLong(p_address, DATA_OFFSET + (p_position * Long.BYTES));
     }
 
     /**
      * Determines a HashSet of all different stored ChunkIDs.
      *
-     * @param p_size    DXMem size-operation.
-     * @param p_reader  DXMem reader for direct memory access.
+     * @param p_memory  DXMem instance to get direct access to the memory
      * @param p_cid     of the Hashtable.
      * @param p_address where the Hashtable is stored.
      * @return a HashSet of all different stored ChunkIDs.
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.Size
      */
-    static HashSet<Long> bucketCIDs(final Size p_size, final RawRead p_reader, final long p_cid, final long p_address) {
-        short depth = p_reader.readShort(p_address, DEPTH_OFFSET);
-        int size = p_size.size(p_cid);
+    static HashSet<Long> bucketCIDs(@NotNull final DXMem p_memory, final long p_cid, final long p_address) {
+        short depth = p_memory.rawRead().readShort(p_address, DEPTH_OFFSET);
+        int size = p_memory.size().size(p_cid);
         HashSet<Long> set = new HashSet<>((int) Math.pow(2, depth)); // max size 2^depth
 
         int offset = DATA_OFFSET;
         long read_cid;
         while (offset < size) { // run through hashtable
 
-            read_cid = p_reader.readLong(p_address, offset);
+            read_cid = p_memory.rawRead().readLong(p_address, offset);
 
             if (!set.contains(read_cid)) { // only if set does not contains long
                 set.add(read_cid);
@@ -313,21 +315,20 @@ class Hashtable {
     /**
      * Clears the Hashtable by overwrite all entries with a new default entry.
      *
-     * @param p_size         DXMem size-operation.
-     * @param p_writer       DXMem writer for direct memory access.
+     * @param p_memory       DXMem instance to get direct access to the memory
      * @param p_cid          of the Hashtable.
      * @param p_address      where the Hashtable is stored.
      * @param p_defaultEntry entry which will be stored as default value.
      * @see de.hhu.bsinfo.dxmem.operations.RawWrite
      * @see de.hhu.bsinfo.dxmem.operations.Size
      */
-    static void clear(final Size p_size, final RawWrite p_writer, final long p_cid, final long p_address, final long p_defaultEntry) {
-        int size = p_size.size(p_cid);
+    static void clear(@NotNull final DXMem p_memory, final long p_cid, final long p_address, final long p_defaultEntry) {
+        int size = p_memory.size().size(p_cid);
         int offset = DATA_OFFSET;
 
         while (offset < size) { // run through the Hashtable
 
-            p_writer.writeLong(p_address, offset, p_defaultEntry); // overwrite with default entry
+            p_memory.rawWrite().writeLong(p_address, offset, p_defaultEntry); // overwrite with default entry
 
             offset += Long.BYTES;
         }
@@ -344,23 +345,24 @@ class Hashtable {
      * @see de.hhu.bsinfo.dxmem.operations.RawRead
      * @see de.hhu.bsinfo.dxmem.operations.Size
      */
-    static String toString(final Size p_size, final RawRead p_reader, final long p_cid, final long p_address) {
+    @NotNull
+    public static String toString(@NotNull final Size p_size, @NotNull final RawRead p_reader, final long p_cid, final long p_address) {
         StringBuilder builder = new StringBuilder();
 
         // add allocated Size
         int chunk_size = p_size.size(p_cid);
         builder.append("\n*********************************************************************************************\n");
-        builder.append("Hashtable Chunk Size: " + chunk_size + " Bytes\n");
+        builder.append("Hashtable Chunk Size: ").append(chunk_size).append(" Bytes\n");
 
         // add Header
         builder.append("***HEADER***\n");
-        builder.append("Depth: " + p_reader.readShort(p_address, DEPTH_OFFSET) + "\n");
+        builder.append("Depth: ").append(p_reader.readShort(p_address, DEPTH_OFFSET)).append("\n");
 
         // add Data
         builder.append("***DATA***\n");
         int offset = DATA_OFFSET;
         while (offset < chunk_size) {
-            builder.append("0x" + Long.toHexString(p_reader.readLong(p_address, offset)).toUpperCase() + " <== " + offset + "\n");
+            builder.append("0x").append(Long.toHexString(p_reader.readLong(p_address, offset)).toUpperCase()).append(" <== ").append(offset).append("\n");
             offset += Long.BYTES;
         }
         builder.append("\n*********************************************************************************************\n");
@@ -372,10 +374,11 @@ class Hashtable {
      * Asserts if the length are correct for the initial hashtable.
      *
      * @param p_length Number of the initial entries
-     * @return true if the number of the intial entries could be represented as 2^x and is not bigger than 2^depth.
+     * @return true if the number of the initial entries could be represented as 2^x and is not bigger than 2^depth.
      */
-    private static boolean assertIntitalEntries(final int p_depth, final int p_length) {
-        if (!Math.pow(2, p_depth) >= p_value.length)
+    @Contract(pure = true)
+    private static boolean assertInitialEntries(final int p_depth, int p_length) {
+        if (!(Math.pow(2, p_depth) >= p_length))
             return false;
 
         while ((p_length & 0x1) == 0) {
@@ -384,9 +387,6 @@ class Hashtable {
 
         p_length >>= 1;
 
-        if (p_length > 0)
-            return false;
-
-        return true;
+        return p_length == 0;
     }
 }

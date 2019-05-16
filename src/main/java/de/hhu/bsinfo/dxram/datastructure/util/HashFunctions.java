@@ -13,15 +13,12 @@ public class HashFunctions {
     private static final int SEED;
 
     public static final byte MURMUR3_32 = 1;
-    public static final byte MURM = 1;
 
     private static HashMap<Byte, HashFunction> functions;
 
     static {
         SEED = Integer.parseInt("0101 0101 0101 0101".replace(" ", ""), 2);
-        Hashing.goodFastHash(32);//;
         functions = new HashMap<>(1);
-        functions.put(MURMUR3_32, Hashing.murmur3_32(SEED));
         functions.put(MURMUR3_32, Hashing.murmur3_32(SEED));
     }
 

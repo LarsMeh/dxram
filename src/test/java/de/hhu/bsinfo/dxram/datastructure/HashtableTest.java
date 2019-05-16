@@ -15,7 +15,7 @@ public class HashtableTest {
         HashtableStructuredTest structuredTest = new HashtableStructuredTest(memory, cid);
 
         System.out.println("INIT");
-        structuredTest.init(0xAAAA, initialSize);
+        structuredTest.init(new long[]{0xAAAA}, initialSize);
 
         System.out.println("SPLIT");
         structuredTest.split(0xAAAA, 0xCCCC, 1);
