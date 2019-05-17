@@ -190,7 +190,6 @@ public class HashMap<K, V> {
 
         m_nodepoolCID = initNodePool(p_onlinePeers, p_numberOfNodes); // Init NodePool
 
-        // TODO: Minimum initial size ? yes
         if (p_initialCapacity < MINIMUM_INITIAL_CAPACITY) {
             p_initialCapacity = MINIMUM_INITIAL_CAPACITY;
             log.warn("Initial Capacity was set to %d", MINIMUM_INITIAL_CAPACITY);
@@ -208,7 +207,7 @@ public class HashMap<K, V> {
                 initialBuckets = 1;
         }
 
-        long[] bucketCIDs = initBuckets(BUCKET_INITIAL_DEPTH, HashMap.BUCKET_ENTRIES, initialBuckets, p_keyBytes, p_valueBytes); // Init Bucket
+        long[] bucketCIDs = initBuckets(initialBuckets, p_keyBytes, p_valueBytes); // Init Bucket
 
         m_hashtableCID = initHashtable(hashtable_depth, bucketCIDs); // Init Hashtable
         m_hashtableAdr = m_memory.pinning().translate(m_hashtableCID);
@@ -266,22 +265,20 @@ public class HashMap<K, V> {
     /**
      * Initializes the memory layout {@link de.hhu.bsinfo.dxram.datastructure.Bucket} and returns all created ChunkIDs.
      *
-     * @param p_depth      initial depth of the bucket
-     * @param p_entries    Maximum number of key-value pair which should the bucket store
-     * @param p_number     Number of ChunkIDs/Buckets which should be intialized
+     * @param p_number     Number of ChunkIDs/Buckets which should be initialized
      * @param p_keyBytes   size of a key
      * @param p_valueBytes size of a value
      * @return the ChunkID of the Bucket.
      */
-    private long[] initBuckets(final short p_depth, final int p_entries, final int p_number, final short p_keyBytes, final short p_valueBytes) {
+    private long[] initBuckets(final int p_number, final short p_keyBytes, final short p_valueBytes) {
         long[] cids = new long[p_number];
 
         for (int i = 0; i < p_number; i++) {
-            int size = Bucket.getInitialMemorySize(p_entries, p_keyBytes, p_valueBytes);
+            int size = Bucket.getInitialMemorySize(BUCKET_ENTRIES, p_keyBytes, p_valueBytes);
             long cid = m_memory.create().create(size);
             long address = pin(cid);
 
-            Bucket.initialize(m_writer, address, p_depth);
+            Bucket.initialize(m_writer, address, BUCKET_INITIAL_DEPTH);
 
             cids[i] = cid;
         }
@@ -345,7 +342,7 @@ public class HashMap<K, V> {
      * @param p_memory access to pinning
      * @param p_cid    ChunkID which should be pinned
      * @return the matching virtual address for the ChunkID.
-     * @throws java.lang.RuntimeException
+     * @throws java.lang.RuntimeException if the ChunkID could not pinned
      */
     private static long pin(@NotNull final DXMem p_memory, final long p_cid) { // TODO: pinning is ok not dxmem and throws clausel
         Pinning.PinnedMemory pinnedMemory = p_memory.pinning().pin(p_cid);
@@ -402,8 +399,7 @@ public class HashMap<K, V> {
      * @param p_key   key with which the specified value is to be associated
      * @param p_value value to be associated with the specified key
      * @return true if the key-value pair could be inserted.
-     * @throws java.lang.NullPointerException
-     * @throws de.hhu.bsinfo.dxmem.core.MemoryRuntimeException
+     * @throws de.hhu.bsinfo.dxmem.core.MemoryRuntimeException when the memory space are not enough
      */
     public boolean put(final K p_key, final V p_value) {
         assert p_key != null && p_value != null;
@@ -561,18 +557,13 @@ public class HashMap<K, V> {
      * @param p_key       key with which the specified value is to be associated
      * @param p_value     value to be associated with the specified key
      * @return a result object based on the executed operation and its results.
-     * @throws java.lang.RuntimeException
+     * @throws java.lang.RuntimeException if the depth of the bucket is bigger than the depth of the hashtable
      */
     private HashMap.Result putLocal(final long p_address, final long p_bucketCID, final byte[] p_hash, final byte[] p_key,
                                     final byte[] p_value, final boolean p_overwrite) {
         if (!Bucket.isFull(m_reader, p_address)) { // Bucket has space
 
-            HashMap.Result result = savePut(m_memory, p_address, p_bucketCID, p_key, p_value, p_overwrite);
-
-            if (!result.m_success)
-                log.warn("SavePut failed for key: " + Arrays.toString(p_key));
-
-            return result;
+            return savePut(m_memory, p_address, p_bucketCID, p_key, p_value, p_overwrite);
 
         } else { // Bucket has maximum entries
 
@@ -608,8 +599,8 @@ public class HashMap<K, V> {
      * @param p_key            key with which the specified value is to be associated
      * @param p_value          value to be associated with the specified key
      * @return a result object based on the executed operation and its result.
-     * @throws java.lang.NullPointerException
-     * @throws java.lang.RuntimeException
+     * @throws java.lang.NullPointerException when the bucket return a null value after the split
+     * @throws java.lang.RuntimeException     when an error occurred on another peer so the bucket could not be written to
      */
     private HashMap.Result splitBucketAndPut(final long p_address, final long p_bucketCID, final byte[] p_hash,
                                              final byte p_hashFunctionId, final byte[] p_key, final byte[] p_value,
@@ -627,7 +618,7 @@ public class HashMap<K, V> {
             Bucket.RawData rawData = Bucket.splitBucket(m_memory, p_address, p_hashFunctionId);
 
             if (rawData == null)
-                throw new RuntimeException();
+                throw new NullPointerException();
 
             if (!ExtendibleHashing.compareBitForDepth(p_hash, Bucket.getDepth(m_reader, p_address))) {
 
@@ -694,7 +685,6 @@ public class HashMap<K, V> {
      * @param p_key       key with which the specified value is to be associated
      * @param p_value     value to be associated with the specified key
      * @return a result object based on the executed operation and its result.
-     * @throws java.lang.RuntimeException
      */
     private static HashMap.Result savePut(@NotNull final DXMem p_memory, long p_address, final long p_bucketCID,
                                           final byte[] p_key, final byte[] p_value, final boolean p_overwrite) {
@@ -716,8 +706,7 @@ public class HashMap<K, V> {
                 result.m_overwrite = true;
                 Bucket.remove(p_memory, p_address, p_key);
 
-                if (!savePut(p_memory, p_address, p_bucketCID, p_key, p_value, true).m_success) // should never be false (m_success)
-                    throw new RuntimeException();
+                savePut(p_memory, p_address, p_bucketCID, p_key, p_value, true);
 
             }
         }
@@ -743,7 +732,6 @@ public class HashMap<K, V> {
      * @param p_key            key with which the specified value is to be associated
      * @param p_value          value to be associated with the specified key
      * @return a result object based on the executed operation and its result
-     * @throws java.lang.RuntimeException
      */
     private static HashMap.Result splitBucketAndPutLocalMemory(@NotNull final DXMem p_memory, final long p_address, final long p_address2,
                                                                final long p_bucketCID, final long p_newBucketCID,
@@ -852,7 +840,6 @@ public class HashMap<K, V> {
      *
      * @param p_key the key whose associated value is to be returned
      * @return the value to which the specified key is mapped, or null if this map contains no mapping for the key.
-     * @throws java.lang.NullPointerException
      * @see #put(java.lang.Object, java.lang.Object)
      */
     public V get(final K p_key) {
@@ -901,6 +888,10 @@ public class HashMap<K, V> {
     }
 
 
+    public void logHashtable() {
+        log.info(Hashtable.toString(m_memory.size(), m_reader, m_hashtableCID, m_hashtableAdr));
+    }
+
     /**
      * Returns the value to the matching key. from local memory.
      *
@@ -928,7 +919,15 @@ public class HashMap<K, V> {
     static GetResponse handleGetRequest(final GetRequest p_request, final DXMem p_memory) {
         assert p_request.getSubtype() == DataStructureMessageTypes.SUBTYPE_GET_REQ;
 
-        return new GetResponse(p_request, getFromLocalMemory(p_memory, p_request.getCid(), p_request.getKey()));
+        byte[] value = getFromLocalMemory(p_memory, p_request.getCid(), p_request.getKey());
+
+        if (value == null) {
+            log.error("Value is null");
+            log.error(p_request.toString());
+            log.error(Bucket.toString(p_memory, p_request.getCid(), p_memory.pinning().translate(p_request.getCid())));
+        }
+
+        return new GetResponse(p_request, value);
     }
 
     /**
@@ -1074,8 +1073,11 @@ public class HashMap<K, V> {
      *
      * @return the number of key-value mappings in this map.
      */
-    public synchronized long size() { // TODO: Synchronize with write lock?
-        return Metadata.getHashMapSize(m_reader, m_metaDataAdr);
+    public long size() {
+        m_lock.writeLock().lock();
+        long ret = Metadata.getHashMapSize(m_reader, m_metaDataAdr);
+        m_lock.writeLock().unlock();
+        return ret;
     }
 
     /**
@@ -1083,8 +1085,11 @@ public class HashMap<K, V> {
      *
      * @return true if this map contains no key-value mappings
      */
-    public synchronized boolean isEmpty() { // TODO: Synchronize with write lock?
-        return Metadata.getHashMapSize(m_reader, m_metaDataAdr) == 0;
+    public boolean isEmpty() {
+        m_lock.writeLock().lock();
+        boolean ret = Metadata.getHashMapSize(m_reader, m_metaDataAdr) == 0;
+        m_lock.writeLock().unlock();
+        return ret;
     }
 
 
@@ -1150,7 +1155,7 @@ public class HashMap<K, V> {
     /**
      * Clears the Hashtable by calling {@link de.hhu.bsinfo.dxram.datastructure.Hashtable#clear(DXMem, long, long, long)}.
      *
-     * @param p_defaultEntry
+     * @param p_defaultEntry The new entry for the Hashtable which will written to all offsets
      * @see de.hhu.bsinfo.dxram.datastructure.Hashtable#clear(DXMem, long, long, long)
      */
     private void clearHashtable(final long p_defaultEntry) {
@@ -1202,7 +1207,7 @@ public class HashMap<K, V> {
      * @param p_file File where the data is written to
      */
     void extractMemoryInformation(final File p_file) {
-        long metadata;
+        long metadata = 0;
         long allocated = 0;
         long used = 0;
         long numberOfBuckets = 0;
@@ -1221,17 +1226,19 @@ public class HashMap<K, V> {
                 long[] info = extractMemoryInformationFromLocalMemory(m_memory, group);
                 allocated += info[0];
                 used += info[1];
+                metadata += info[2];
 
             } else { // global
 
                 MemoryInformationResponse response = (MemoryInformationResponse) m_service.sendSync(new MemoryInformationRequest(nodeId, group), -1);
                 allocated += response.getAllocated();
                 used += response.getUsed();
+                metadata += response.getMetadata();
 
             }
         }
 
-        metadata = numberOfBuckets * Bucket.getMetadataMemSize();
+        metadata += numberOfBuckets * Bucket.getMetadataMemSize();
 
         log.debug("Write information to file: " + p_file.getAbsolutePath());
         try (BufferedWriter bw = new BufferedWriter(new FileWriter(p_file))) {
@@ -1244,7 +1251,7 @@ public class HashMap<K, V> {
             bw.write(String.format("Nodepool MemSize %d\n", m_memory.size().size(m_nodepoolCID)));
 
         } catch (IOException p_e) {
-            log.error("IOException catched while try to write memory information to " + p_file.getAbsolutePath());
+            log.error("IOException catches while try to write memory information to " + p_file.getAbsolutePath());
         }
     }
 
@@ -1262,7 +1269,7 @@ public class HashMap<K, V> {
 
         long[] information = extractMemoryInformationFromLocalMemory(p_memory, p_request.getCids());
 
-        return new MemoryInformationResponse(p_request, information[0], information[1]);
+        return new MemoryInformationResponse(p_request, information[0], information[1], information[2]);
     }
 
     /**
@@ -1273,11 +1280,12 @@ public class HashMap<K, V> {
      * @return the summed up requested memory information.
      */
     private static long[] extractMemoryInformationFromLocalMemory(final DXMem p_memory, @NotNull final long[] p_chunkID) {
-        long[] information = {0L, 0L};
+        long[] information = {0L, 0L, 0L};
 
         for (long cid : p_chunkID) {
             information[0] += p_memory.size().size(cid);
             information[1] += Bucket.getUsedBytes(p_memory.rawRead(), p_memory.pinning().translate(cid), false);
+            information[2] += Bucket.getSize(p_memory.rawRead(), p_memory.pinning().translate(cid)) * 2 * Short.BYTES;
         }
 
         return information;
@@ -1289,7 +1297,7 @@ public class HashMap<K, V> {
      * @return all different ChunkIDs from the hashtable and groups them by their NodeID.
      */
     private java.util.HashMap<Short, ArrayList<Long>> getAllGroupedChunkIDs() {
-        HashSet<Long> cids = Hashtable.bucketCIDs(m_memory, m_hashtableCID, m_hashtableAdr); // differen ChunkIDs
+        HashSet<Long> cids = Hashtable.bucketCIDs(m_memory, m_hashtableCID, m_hashtableAdr); // different ChunkIDs
 
         java.util.HashMap<Short, ArrayList<Long>> grouped_cids = new java.util.HashMap<>(cids.size());
 

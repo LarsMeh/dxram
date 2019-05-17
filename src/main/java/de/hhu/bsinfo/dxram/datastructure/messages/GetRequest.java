@@ -1,5 +1,6 @@
 package de.hhu.bsinfo.dxram.datastructure.messages;
 
+import de.hhu.bsinfo.dxmem.data.ChunkID;
 import de.hhu.bsinfo.dxnet.core.AbstractMessageExporter;
 import de.hhu.bsinfo.dxnet.core.AbstractMessageImporter;
 import de.hhu.bsinfo.dxnet.core.Request;
@@ -38,6 +39,7 @@ public class GetRequest extends Request {
         super(p_destination, DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_GET_REQ);
         m_key = p_key;
         m_cid = p_cid;
+        setIgnoreTimeout(true);
     }
 
     /**
@@ -82,10 +84,10 @@ public class GetRequest extends Request {
         builder.append(NodeID.toHexString(this.getSource()));
         builder.append("\nTo:");
         builder.append(NodeID.toHexString(this.getDestination()));
-        builder.append("Begin Data\nKey = ");
+        builder.append("\nBegin Data\nKey = ");
         builder.append(Arrays.toString(m_key));
         builder.append("\nCID = ");
-        builder.append(m_cid);
+        builder.append(ChunkID.toHexString(m_cid));
         builder.append("\nEnd Data\n");
 
         return builder.toString();

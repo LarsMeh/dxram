@@ -66,7 +66,7 @@ public class MemoryInformationRequest extends Request {
         builder.append(NodeID.toHexString(this.getSource()));
         builder.append("\nTo:");
         builder.append(NodeID.toHexString(this.getDestination()));
-        builder.append("Begin Data\nData = ");
+        builder.append("\nBegin Data\nData = ");
         builder.append(Arrays.toString(m_cids));
         builder.append("\nEnd Data\n");
 

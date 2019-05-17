@@ -176,13 +176,17 @@ public class HashMapTest {
     }
 
     @TestInstance(runOnNodeIdx = 1)
-    public void extremePut(final DXRAM p_instance) {
+    public void extremePutAndGet(final DXRAM p_instance) {
         DataStructureService service = p_instance.getService(DataStructureService.class);
 
         HashMap<Integer, Integer> map = service.createHashMap(m_id, 5000000, m_nodes, 4, 4, HashFunctions.MURMUR3_32, true);
 
-        for (int i = 0; i < 5000; i++) {
+        for (int i = 0; i < 1000000; i++) {
             map.put(i, i + 1);
+        }
+
+        for (int i = 0; i < 2000; i++) {
+            map.get(i);
         }
 
     }

@@ -145,7 +145,7 @@ public class Hashtable {
         short depth = (short) (p_memory.rawRead().readShort(p_address, DEPTH_OFFSET) + 1);
         p_memory.rawWrite().writeShort(p_address, DEPTH_OFFSET, depth);
 
-        log.warn("Now Depth is " + depth + " Hash table will be resized from " + ((long) Math.pow(2, depth - 1) * Long.BYTES + DATA_OFFSET) + " to " + ((long) Math.pow(2, depth) * Long.BYTES + DATA_OFFSET));
+        //log.warn("Now Depth is " + depth + " Hash table will be resized from " + ((long) Math.pow(2, depth - 1) * Long.BYTES + DATA_OFFSET) + " to " + ((long) Math.pow(2, depth) * Long.BYTES + DATA_OFFSET));
 
         // resize chunk
         int newSize = (int) Math.pow(2, depth) * Long.BYTES + DATA_OFFSET;
@@ -361,9 +361,11 @@ public class Hashtable {
         // add Data
         builder.append("***DATA***\n");
         int offset = DATA_OFFSET;
+        int position = 0;
         while (offset < chunk_size) {
-            builder.append("0x").append(Long.toHexString(p_reader.readLong(p_address, offset)).toUpperCase()).append(" <== ").append(offset).append("\n");
+            builder.append("0x").append(Long.toHexString(p_reader.readLong(p_address, offset)).toUpperCase()).append(" <== ").append(offset).append(" or ").append(position).append("\n");
             offset += Long.BYTES;
+            position++;
         }
         builder.append("\n*********************************************************************************************\n");
 

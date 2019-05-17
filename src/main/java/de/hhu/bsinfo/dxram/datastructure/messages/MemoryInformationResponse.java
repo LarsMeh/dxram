@@ -19,6 +19,7 @@ public class MemoryInformationResponse extends Response {
 
     private long m_allocated;
     private long m_used;
+    private long m_metadata;
 
     /**
      * Empty constructor which is needed for dxnet.
@@ -34,10 +35,12 @@ public class MemoryInformationResponse extends Response {
      * @param p_allocated entire size which was allocated
      * @param p_used      entire size which is actually used
      */
-    public MemoryInformationResponse(final MemoryInformationRequest p_request, final long p_allocated, final long p_used) {
-        super(p_request, DataStructureMessageTypes.SUBTYPE_MEM_INFO_REQ);
+    public MemoryInformationResponse(final MemoryInformationRequest p_request, final long p_allocated, final long p_used,
+                                     final long p_metadata) {
+        super(p_request, DataStructureMessageTypes.SUBTYPE_MEM_INFO_RES);
         m_allocated = p_allocated;
         m_used = p_used;
+        m_metadata = p_metadata;
     }
 
     /**
@@ -58,21 +61,32 @@ public class MemoryInformationResponse extends Response {
         return m_used;
     }
 
+    /**
+     * Returns the used memory for metadata
+     *
+     * @return the used memory for metadata
+     */
+    public long getMetadata() {
+        return m_metadata;
+    }
+
     @Override
     protected int getPayloadLength() {
-        return Long.BYTES * 2;
+        return Long.BYTES * 3;
     }
 
     @Override
     protected void readPayload(AbstractMessageImporter p_importer) {
         m_allocated = p_importer.readLong(m_allocated);
         m_used = p_importer.readLong(m_used);
+        m_metadata = p_importer.readLong(m_metadata);
     }
 
     @Override
     protected void writePayload(AbstractMessageExporter p_exporter) {
         p_exporter.writeLong(m_allocated);
         p_exporter.writeLong(m_used);
+        p_exporter.writeLong(m_metadata);
     }
 
     @Override
@@ -82,7 +96,7 @@ public class MemoryInformationResponse extends Response {
         builder.append(NodeID.toHexString(this.getSource()));
         builder.append("\nTo:");
         builder.append(NodeID.toHexString(this.getDestination()));
-        builder.append("Begin Data\nAllocated = ");
+        builder.append("\nBegin Data\nAllocated = ");
         builder.append(m_allocated);
         builder.append("\nUsed = ");
         builder.append(m_used);
