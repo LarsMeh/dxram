@@ -134,18 +134,33 @@ public class HashMapGlobalTest {
     public void extremePut(final DXRAM p_instance) {
         DataStructureService service = p_instance.getService(DataStructureService.class);
 
-        HashMap<Integer, Integer> map = service.createHashMap(m_id, 1000, m_nodes, 4, 4, HashFunctions.MURMUR3_32, true);
+        HashMap<Integer, Integer> map = service.createHashMap(m_id, 2, m_nodes, 4, 4, HashFunctions.MURMUR3_32, true);
 
-        for (int i = 0; i < 1843; i++) {
-            map.put(i, i + 1);
-        }
+        // put : 1843 (exp = 4)
 
+        // Put
+        map.put(0x20000000, 1);
+        map.put(0x80000000, 2);
+        map.logHashtable();
+        map.put(0x10000000, 3);
+        map.put(0xA0000000, 4);
+        map.logHashtable();
+        map.put(0x40000000, 5);
+        map.put(0xC0000000, 6);
+        map.logHashtable();
+        map.put(0x60000000, 7);
+        map.put(0xE0000000, 8);
+        map.put(0xF0000000, 9);
         map.logHashtable();
 
-        for (int i = 617; i < 800; i++) {
-            map.get(i);
-        }
-
-        //map.get(616);
+        // Get
+        map.get(0x20000000);
+        map.get(0x80000000);
+        map.get(0x10000000);
+        map.get(0xA0000000);
+        map.get(0x40000000);
+        map.get(0xC0000000);
+        map.get(0x60000000);
+        map.get(0xE0000000);
     }
 }

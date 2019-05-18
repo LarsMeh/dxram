@@ -14,7 +14,7 @@ public class ExtendibleHashingTest {
         int tmp = Integer.parseInt("0000 0000 0000 0000 1000 1000 1000 1010".replace(" ", ""), 2);
         byte[] suspect = ConverterLittleEndian.intToByteArray(tmp);
 
-
+        //TODO optimize test for correct index from array
         result = ExtendibleHashing.compareBitForDepth(suspect, 31);
         Assert.assertEquals(true, result);
 
@@ -34,6 +34,9 @@ public class ExtendibleHashingTest {
         Assert.assertEquals(false, result);
 
         result = ExtendibleHashing.compareBitForDepth(suspect, 32);
+        Assert.assertEquals(false, result);
+
+        result = ExtendibleHashing.compareBitForDepth(suspect, 1);
         Assert.assertEquals(false, result);
 
         result = ExtendibleHashing.compareBitForDepth(suspect, 1);

@@ -59,7 +59,7 @@ public class HashMap<K, V> {
 
     static {
         HASH_TABLE_DEPTH_LIMIT = 31;
-        BUCKET_ENTRIES_EXP = 4;
+        BUCKET_ENTRIES_EXP = 12;
         BUCKET_ENTRIES = (int) Math.pow(2, BUCKET_ENTRIES_EXP);
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;
@@ -477,7 +477,7 @@ public class HashMap<K, V> {
                 } else {
 
                     if (m_memory.stats().getHeapStatus().getTotalSizeBytes() < ((long) Math.pow(2, depth + 1) * Long.BYTES + 2))
-                        throw new MemoryRuntimeException("Total Bytes: " + m_memory.stats().getHeapStatus().getTotalSizeBytes() + " But want to allocate more");
+                        throw new MemoryRuntimeException("Total Bytes: " + m_memory.stats().getHeapStatus().getTotalSizeBytes() + " but want to allocate more for resizing the hashtable");
 
                     depth++;
                     m_hashtableAdr = Hashtable.resize(m_memory, m_hashtableCID, m_hashtableAdr);
@@ -741,12 +741,10 @@ public class HashMap<K, V> {
         Bucket.splitBucket(p_memory, p_address, p_address2, p_hashFunctionId);
 
         if (ExtendibleHashing.compareBitForDepth(p_hash, Bucket.getDepth(p_memory.rawRead(), p_address))) { // try put, true --> new bucket else old bucket
-
             if (!Bucket.isFull(p_memory.rawRead(), p_address2))
                 return savePut(p_memory, p_address2, p_newBucketCID, p_key, p_value, p_overwrite);
 
         } else {
-
             if (!Bucket.isFull(p_memory.rawRead(), p_address))
                 return savePut(p_memory, p_address, p_bucketCID, p_key, p_value, p_overwrite);
         }
@@ -876,6 +874,7 @@ public class HashMap<K, V> {
         if (valueBytes == null) // key was not found
             return null;
 
+
         if (m_serializeValue) { // deserialize
 
             value = Skema.newInstance(Metadata.getSkemaValueId(m_reader, m_metaDataAdr));
@@ -888,8 +887,25 @@ public class HashMap<K, V> {
     }
 
 
-    public void logHashtable() {
+    void logHashtable() {
         log.info(Hashtable.toString(m_memory.size(), m_reader, m_hashtableCID, m_hashtableAdr));
+    }
+
+    void writeLocalBuckets(final File p_file) {
+        ArrayList<Long> cids = Hashtable.bucketCIDsInSequence(m_memory, m_hashtableCID, m_hashtableAdr);
+
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(p_file))) {
+
+            bw.write("Number of different CIDs" + cids.size());
+
+            for (long cid : cids) {
+                if (m_service.isLocal(cid)) {
+                    bw.write(Bucket.toString(m_memory, cid, m_pinning.translate(cid)));
+                }
+            }
+        } catch (IOException p_e) {
+            p_e.printStackTrace();
+        }
     }
 
     /**

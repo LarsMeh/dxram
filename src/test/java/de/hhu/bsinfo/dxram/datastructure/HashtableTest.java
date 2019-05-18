@@ -43,7 +43,7 @@ public class HashtableTest {
         boolean exc = false;
 
         System.out.println("RESIZE");
-        expect = "*********************************************************************************************HashtableChunkSize:66Bytes***HEADER***Depth:3***DATA***0xAAAA<==20xAAAA<==100xBBBB<==180xBBBB<==260xCCCC<==340xCCCC<==420xDDDD<==500xDDDD<==58*********************************************************************************************";
+        expect = "*********************************************************************************************HashtableChunkSize:66Bytes***HEADER***Depth:3***DATA***0xAAAA<==2or00xAAAA<==10or10xBBBB<==18or20xBBBB<==26or30xCCCC<==34or40xCCCC<==42or50xDDDD<==50or60xDDDD<==58or7*********************************************************************************************";
         try {
             structuredTest.resize(expect, 3);
         } catch (RuntimeException p_e) {
@@ -51,7 +51,7 @@ public class HashtableTest {
         }
 
         System.out.println("RESIZE");
-        expect = "*********************************************************************************************HashtableChunkSize:130Bytes***HEADER***Depth:4***DATA***0xAAAA<==20xAAAA<==100xAAAA<==180xAAAA<==260xBBBB<==340xBBBB<==420xBBBB<==500xBBBB<==580xCCCC<==660xCCCC<==740xCCCC<==820xCCCC<==900xDDDD<==980xDDDD<==1060xDDDD<==1140xDDDD<==122*********************************************************************************************";
+        expect = "*********************************************************************************************HashtableChunkSize:130Bytes***HEADER***Depth:4***DATA***0xAAAA<==2or00xAAAA<==10or10xAAAA<==18or20xAAAA<==26or30xBBBB<==34or40xBBBB<==42or50xBBBB<==50or60xBBBB<==58or70xCCCC<==66or80xCCCC<==74or90xCCCC<==82or100xCCCC<==90or110xDDDD<==98or120xDDDD<==106or130xDDDD<==114or140xDDDD<==122or15*********************************************************************************************";
         try {
             structuredTest.resize(expect, 4);
         } catch (RuntimeException p_e) {

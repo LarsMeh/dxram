@@ -1,6 +1,7 @@
 package de.hhu.bsinfo.dxram.datastructure;
 
 import de.hhu.bsinfo.dxmem.DXMem;
+import de.hhu.bsinfo.dxmem.data.ChunkID;
 import de.hhu.bsinfo.dxmem.data.ChunkState;
 import de.hhu.bsinfo.dxmem.operations.*;
 import org.apache.logging.log4j.LogManager;
@@ -8,6 +9,7 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.Contract;
 import org.jetbrains.annotations.NotNull;
 
+import java.util.ArrayList;
 import java.util.HashSet;
 
 /**
@@ -196,7 +198,7 @@ public class Hashtable {
      * @see de.hhu.bsinfo.dxmem.operations.Size
      */
     public static void splitForEntry(@NotNull final DXMem p_memory, final long p_cid, final long p_address, final long p_suspect,
-                              final int p_position, final long p_value) {
+                                     final int p_position, final long p_value) {
         int memorySize = p_memory.size().size(p_cid);
 
         int position = p_position * Long.BYTES; // position into position/offset for direct memory access
@@ -310,6 +312,39 @@ public class Hashtable {
         }
 
         return set;
+    }
+
+    /**
+     * Determines a ArrayList of all different stored ChunkIDs in the correct sequence.
+     *
+     * @param p_memory  DXMem instance to get direct access to the memory
+     * @param p_cid     of the Hashtable.
+     * @param p_address where the Hashtable is stored.
+     * @return an ArrayList of all different stored ChunkIDs in the correct sequence.
+     * @see de.hhu.bsinfo.dxmem.operations.RawRead
+     * @see de.hhu.bsinfo.dxmem.operations.Size
+     */
+    static ArrayList<Long> bucketCIDsInSequence(@NotNull final DXMem p_memory, final long p_cid, final long p_address) {
+        short depth = p_memory.rawRead().readShort(p_address, DEPTH_OFFSET);
+        int size = p_memory.size().size(p_cid);
+        HashSet<Long> set = new HashSet<>((int) Math.pow(2, depth)); // max size 2^depth
+        ArrayList<Long> list = new ArrayList<>((int) Math.pow(2, depth));
+
+        int offset = DATA_OFFSET;
+        long read_cid;
+        while (offset < size) { // run through hashtable
+
+            read_cid = p_memory.rawRead().readLong(p_address, offset);
+
+            if (!set.contains(read_cid)) { // only if set does not contains long
+                set.add(read_cid);
+                list.add(read_cid);
+            }
+
+            offset += Long.BYTES;
+        }
+
+        return list;
     }
 
     /**

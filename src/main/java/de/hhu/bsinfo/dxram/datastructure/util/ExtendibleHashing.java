@@ -5,6 +5,7 @@ import org.apache.logging.log4j.Logger;
 import org.jetbrains.annotations.NotNull;
 
 import java.security.InvalidParameterException;
+import java.util.Arrays;
 
 /**
  * This class is a representation of the hash algorithm Extendible Hashing.
@@ -34,7 +35,7 @@ public final class ExtendibleHashing {
         p_depth--;
 
         int bitmask = BITMASK >>> (p_depth % 8);
-        int val = p_value[3 - ((p_depth - 1) / 8)];
+        int val = p_value[3 - (p_depth/ 8)];
 
         return (val & bitmask) != 0;
     }
