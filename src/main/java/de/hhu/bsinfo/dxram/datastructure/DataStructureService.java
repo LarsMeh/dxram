@@ -401,8 +401,8 @@ public class DataStructureService extends Service<ModuleConfig> implements Messa
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_PUT_REQ, PutRequest.class);
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_ALLOCATE_REQ, AllocateChunkRequest.class);
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_WRITE_BUCKET_REQ, WriteBucketRawDataRequest.class);
-        m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_REQ, RemoveRequest.class); // TODO erlaubt?
-        m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_WITH_KEY_REQ, RemoveRequest.class); // TODO erlaubt?
+        m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_REQ, RemoveRequest.class);
+        m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_REMOVE_WITH_KEY_REQ, RemoveRequest.class);
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_GET_REQ, GetRequest.class);
         m_network.registerMessageType(DXRAMMessageTypes.DATA_STRUCTURE_MESSAGE_TYPE, DataStructureMessageTypes.SUBTYPE_MEM_INFO_REQ, MemoryInformationRequest.class);
 

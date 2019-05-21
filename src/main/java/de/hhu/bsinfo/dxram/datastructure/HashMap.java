@@ -59,7 +59,7 @@ public class HashMap<K, V> {
 
     static {
         HASH_TABLE_DEPTH_LIMIT = 31;
-        BUCKET_ENTRIES_EXP = 12;
+        BUCKET_ENTRIES_EXP = 4;
         BUCKET_ENTRIES = (int) Math.pow(2, BUCKET_ENTRIES_EXP);
         BUCKET_INITIAL_DEPTH = 0;
         SKEMA_DEFAULT_ID = -1;

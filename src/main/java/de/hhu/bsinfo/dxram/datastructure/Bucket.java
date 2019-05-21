@@ -797,10 +797,11 @@ class Bucket {
 
         //log.debug(String.format("Copy Memory from %d to %d with size = %d", p_from, p_to, p_size));
 
-        byte[] tmp = new byte[p_size];
+        //byte[] tmp = new byte[p_size];
 
-        p_memory.rawRead().read(p_address, p_from, tmp);
-        p_memory.rawWrite().write(p_address, p_to, tmp);
+        //p_memory.rawRead().read(p_address, p_from, tmp);
+        //p_memory.rawWrite().write(p_address, p_to, tmp);
+        p_memory.rawWrite().copyNative(p_address, p_to,p_address, p_from, p_size, false);
     }
 
     /**

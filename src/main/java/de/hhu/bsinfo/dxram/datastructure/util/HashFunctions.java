@@ -1,9 +1,8 @@
 package de.hhu.bsinfo.dxram.datastructure.util;
 
-import com.google.common.hash.*;
+import com.google.common.hash.HashFunction;
+import com.google.common.hash.Hashing;
 
-import java.nio.ByteBuffer;
-import java.nio.charset.Charset;
 import java.util.HashMap;
 
 /**
