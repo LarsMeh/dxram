@@ -91,7 +91,7 @@ public class HashMap<K, V> {
     private boolean m_skemaRegistrationSwitch; // TODO: Put into metadata
     private boolean m_serializeKey; // TODO: Put into metadata
     private boolean m_serializeValue; // TODO: Put into metadata
-    private final boolean m_overwrite;
+    private boolean m_overwrite; // TODO: Put into metadata
 
     /**
      * Constructs an empty HashMap an will distribute them on all online peers.
@@ -1329,6 +1329,20 @@ public class HashMap<K, V> {
         });
 
         return grouped_cids;
+    }
+
+    /**
+     * Activates that a put will check if the key is stored and if it is true only the key will be overwritten.
+     */
+    public void activateOverwrite() {
+        m_overwrite = true;
+    }
+
+    /**
+     * Deactivates that a put will check if the key is stored. For big BucketSizes it has a much better performance.
+     */
+    public void deactivateOverwrtie() {
+        m_overwrite = false;
     }
 
     /**
